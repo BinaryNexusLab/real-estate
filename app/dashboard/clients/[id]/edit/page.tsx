@@ -70,10 +70,33 @@ export default function EditClientPage() {
       return
     }
 
-    if (dummyClients[clientId]) {
-      setFormData(dummyClients[clientId])
+    try {
+      const stored = localStorage.getItem("clients")
+      if (stored) {
+        const parsed = JSON.parse(stored) as Client[]
+        const found = parsed.find((c) => c.id === clientId)
+        if (found) {
+          setFormData(found)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // fallback to dummy clients
+      if (dummyClients[clientId]) {
+        setFormData(dummyClients[clientId])
+        setIsLoading(false)
+        return
+      }
+
+      // not found: redirect back to clients list
+      router.push("/dashboard/clients")
+    } catch (e) {
+      // parse error or other issue - go back to list
+      // eslint-disable-next-line no-console
+      console.warn("Failed to load client for edit", e)
+      router.push("/dashboard/clients")
     }
-    setIsLoading(false)
   }, [clientId, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -88,10 +111,27 @@ export default function EditClientPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
-    setTimeout(() => {
+    try {
+      // Read existing clients, update matching id or append
+      const stored = localStorage.getItem("clients")
+      const clients = stored ? (JSON.parse(stored) as Client[]) : []
+      const idx = clients.findIndex((c) => c.id === clientId)
+      if (idx > -1) {
+        clients[idx] = formData as Client
+      } else {
+        clients.push(formData as Client)
+      }
+      localStorage.setItem("clients", JSON.stringify(clients))
+
+      setTimeout(() => {
+        setIsSaving(false)
+        router.push(`/dashboard/clients/${clientId}`)
+      }, 250)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to save client", err)
       setIsSaving(false)
-      router.push(`/dashboard/clients/${clientId}`)
-    }, 500)
+    }
   }
 
   if (isLoading || !formData) return <div className="min-h-screen flex items-center justify-center">Loading...</div>

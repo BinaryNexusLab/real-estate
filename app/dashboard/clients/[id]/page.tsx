@@ -64,10 +64,32 @@ export default function ClientDetailPage() {
       return
     }
 
-    if (dummyClients[clientId]) {
-      setClient(dummyClients[clientId])
+    try {
+      const stored = localStorage.getItem("clients")
+      if (stored) {
+        const parsed = JSON.parse(stored) as Client[]
+        const found = parsed.find((c) => c.id === clientId)
+        if (found) {
+          setClient(found)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // fallback to dummy clients
+      if (dummyClients[clientId]) {
+        setClient(dummyClients[clientId])
+        setIsLoading(false)
+        return
+      }
+
+      // not found - keep client null so UI shows "Client not found"
+      setIsLoading(false)
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to load client detail", e)
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [clientId])
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>

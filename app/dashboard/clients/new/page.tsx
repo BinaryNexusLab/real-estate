@@ -42,10 +42,36 @@ export default function NewClientPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
-    setTimeout(() => {
+    try {
+      // Create a client object with a simple unique id
+      const newClient = {
+        id: Date.now().toString(),
+        name: formData.name,
+        email: formData.email,
+        budget: formData.budget,
+        salary: formData.salary,
+        investmentGoal: formData.investmentGoal,
+        preferredLocation: formData.preferredLocation,
+        investmentPeriod: formData.investmentPeriod,
+      }
+
+      // Read existing clients from localStorage and append
+      const stored = localStorage.getItem("clients")
+      const clients = stored ? (JSON.parse(stored) as any[]) : []
+      clients.push(newClient)
+      localStorage.setItem("clients", JSON.stringify(clients))
+
+      // small delay to show saving state (UX)
+      setTimeout(() => {
+        setIsSaving(false)
+        router.push("/dashboard/clients")
+      }, 250)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to save client", err)
       setIsSaving(false)
-      router.push("/dashboard/clients")
-    }, 500)
+      // remain on page so user can retry
+    }
   }
 
   return (
