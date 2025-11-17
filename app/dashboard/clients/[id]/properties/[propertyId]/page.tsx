@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Download, Share2, MapPin, Home, TrendingUp, DollarSign, Clock, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { dummyProperties, type Property } from "@/lib/dummy-properties"
+import { type Property } from "@/lib/dummy-properties"
 import { calculateInvestmentAnalysis, type PropertyAnalysis } from "@/lib/investment-calculator"
 import { formatCurrency, formatPercent, getInvestmentRating, getYieldRating } from "@/lib/analysis-utils"
 import {
@@ -24,6 +24,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import { realData } from "@/app/data/real_data"
 
 interface Client {
   id: string
@@ -53,19 +54,107 @@ export default function PropertyDetailPage() {
       return
     }
 
-    if (dummyClients[clientId]) {
-      setClient(dummyClients[clientId])
+    let loadedClient: Client | null = null
+    
+    // Try to load from localStorage first (for newly created clients)
+    try {
+      const stored = localStorage.getItem("clients")
+      if (stored) {
+        const parsed = JSON.parse(stored) as any[]
+        const found = parsed.find((c) => c.id === clientId)
+        if (found) {
+          loadedClient = {
+            id: found.id,
+            name: found.name,
+            salary: found.salary,
+          }
+        }
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to load client from localStorage", e)
+    }
+    
+    // Fallback to dummy clients
+    if (!loadedClient && dummyClients[clientId]) {
+      loadedClient = dummyClients[clientId]
+    }
+    
+    if (loadedClient) {
+      setClient(loadedClient)
     }
 
-    const foundProperty = dummyProperties.find((p) => p.id === propertyId)
+    const foundProperty = realData.find((p) => p.id === Number(propertyId))
     if (foundProperty) {
-      setProperty(foundProperty)
+      // Map the external realData shape to our internal Property shape
+      const mappedProperty = {
+        id: String((foundProperty as any).id),
+        price:
+          (foundProperty as any).price ??
+          (foundProperty as any)["Price (AUD)"] ??
+          (foundProperty as any)["Price"] ??
+          0,
+        address:
+          (foundProperty as any).address ??
+          (foundProperty as any)["Full Address"] ??
+          (foundProperty as any)["Address"] ??
+          "",
+        suburb:
+          (foundProperty as any).suburb ??
+          (foundProperty as any).Suburb ??
+          "",
+        state:
+          (foundProperty as any).state ??
+          (foundProperty as any).State ??
+          "",
+        postcode:
+          (foundProperty as any).postcode ??
+          (foundProperty as any).Postcode ??
+          (foundProperty as any)["Postcode"] ??
+          "",
+        propertyType:
+          (foundProperty as any).propertyType ??
+          (foundProperty as any)["Property Type"] ??
+          "",
+        yearBuilt:
+          (foundProperty as any).yearBuilt ??
+          (foundProperty as any)["Year Built"] ??
+          null,
+        bedrooms:
+          (foundProperty as any).bedrooms ??
+          (foundProperty as any).Bedrooms ??
+          0,
+        bathrooms:
+          (foundProperty as any).bathrooms ??
+          (foundProperty as any).Bathrooms ??
+          0,
+        carSpaces:
+          (foundProperty as any).carSpaces ??
+          (foundProperty as any)["Car Spaces"] ??
+          0,
+        energyRating:
+          (foundProperty as any).energyRating ??
+          (foundProperty as any)["Energy Rating"] ??
+          "",
+        estimatedRentalValueWeekly:
+          (foundProperty as any).estimatedRentalValueWeekly ??
+          (foundProperty as any)["Estimated Rent Weekly"] ??
+          (foundProperty as any)["Estimated Rental Value Weekly"] ??
+          0,
+        maintenanceCostAnnual:
+          (foundProperty as any).maintenanceCostAnnual ??
+          (foundProperty as any)["Maintenance Cost (Annual)"] ??
+          (foundProperty as any)["Maintenance"] ??
+          0,
+      } as unknown as Property
+
+      setProperty(mappedProperty)
 
       // Calculate analysis
       const propertyAnalysis = calculateInvestmentAnalysis(
-        foundProperty.price,
-        foundProperty.estimatedRentalValueWeekly,
-        foundProperty.maintenanceCostAnnual,
+        mappedProperty.price,
+        mappedProperty.estimatedRentalValueWeekly,
+        mappedProperty.maintenanceCostAnnual,
         0.07,
         30,
         0.04,
@@ -91,7 +180,7 @@ export default function PropertyDetailPage() {
   const cashFlowData = [
     {
       month: "Jan",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -102,7 +191,7 @@ export default function PropertyDetailPage() {
     },
     {
       month: "Feb",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -113,7 +202,7 @@ export default function PropertyDetailPage() {
     },
     {
       month: "Mar",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -124,7 +213,7 @@ export default function PropertyDetailPage() {
     },
     {
       month: "Apr",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -135,7 +224,7 @@ export default function PropertyDetailPage() {
     },
     {
       month: "May",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -146,7 +235,7 @@ export default function PropertyDetailPage() {
     },
     {
       month: "Jun",
-      income: analysis.monthlyRentalIncome,
+      income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
@@ -512,7 +601,7 @@ export default function PropertyDetailPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-3">

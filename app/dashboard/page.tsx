@@ -33,39 +33,60 @@ export default function DashboardPage() {
       window.location.href = "/"
     } else {
       setAgent(JSON.parse(storedAgent))
-      // Load dummy clients
-      setClients([
-        {
-          id: "1",
-          name: "John Smith",
-          email: "john@example.com",
-          budget: 600000,
-          salary: 120000,
-          investmentGoal: "Capital Appreciation",
-          preferredLocation: "Sydney",
-          investmentPeriod: 10,
-        },
-        {
-          id: "2",
-          name: "Sarah Johnson",
-          email: "sarah@example.com",
-          budget: 450000,
-          salary: 95000,
-          investmentGoal: "Rental Yield",
-          preferredLocation: "Melbourne",
-          investmentPeriod: 15,
-        },
-        {
-          id: "3",
-          name: "Michael Chen",
-          email: "michael@example.com",
-          budget: 750000,
-          salary: 150000,
-          investmentGoal: "Mixed Portfolio",
-          preferredLocation: "Brisbane",
-          investmentPeriod: 7,
-        },
-      ])
+      
+      // Load clients from localStorage, fallback to dummy clients
+      try {
+        const stored = localStorage.getItem("clients")
+        if (stored) {
+          const parsed = JSON.parse(stored) as Client[]
+          setClients(parsed)
+        } else {
+          // Seed with dummy clients if none exist
+          const dummyClients: Client[] = [
+            {
+              id: "1",
+              name: "John Smith",
+              email: "john@example.com",
+              budget: 600000,
+              salary: 120000,
+              investmentGoal: "Capital Appreciation",
+              preferredLocation: "Sydney",
+              investmentPeriod: 10,
+            },
+            {
+              id: "2",
+              name: "Sarah Johnson",
+              email: "sarah@example.com",
+              budget: 450000,
+              salary: 95000,
+              investmentGoal: "Rental Yield",
+              preferredLocation: "Melbourne",
+              investmentPeriod: 15,
+            },
+            {
+              id: "3",
+              name: "Michael Chen",
+              email: "michael@example.com",
+              budget: 750000,
+              salary: 150000,
+              investmentGoal: "Mixed Portfolio",
+              preferredLocation: "Brisbane",
+              investmentPeriod: 7,
+            },
+          ]
+          setClients(dummyClients)
+          try {
+            localStorage.setItem("clients", JSON.stringify(dummyClients))
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn("Could not save seed clients to localStorage", e)
+          }
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to load clients from localStorage", e)
+        setClients([])
+      }
       setIsLoading(false)
     }
   }, [])

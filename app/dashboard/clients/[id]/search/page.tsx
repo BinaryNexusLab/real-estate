@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, MapPin, Home, DollarSign, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { dummyProperties, type Property } from "@/lib/dummy-properties"
+import { type Property } from "@/lib/dummy-properties"
+import { realData } from "@/app/data/real_data"
 
 interface Client {
   id: string
@@ -51,7 +52,7 @@ export default function PropertySearchPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([])
   const [filters, setFilters] = useState({
-    maxPrice: 800000,
+    maxPrice: 0,
     minBedrooms: 0,
     propertyType: "All",
   })
@@ -64,21 +65,96 @@ export default function PropertySearchPage() {
       return
     }
 
-    if (dummyClients[clientId]) {
-      setClient(dummyClients[clientId])
+    let loadedClient: Client | null = null
+    
+    // Try to load from localStorage first (for newly created clients)
+    try {
+      const stored = localStorage.getItem("clients")
+      if (stored) {
+        const parsed = JSON.parse(stored) as any[]
+        const found = parsed.find((c) => c.id === clientId)
+        if (found) {
+          loadedClient = {
+            id: found.id,
+            name: found.name,
+            budget: found.budget,
+            preferredLocation: found.preferredLocation,
+            investmentGoal: found.investmentGoal,
+          }
+        }
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to load client from localStorage", e)
     }
+    
+    // Fallback to dummy clients
+    if (!loadedClient && dummyClients[clientId]) {
+      loadedClient = dummyClients[clientId]
+    }
+    
+    if (!loadedClient) {
+      // Client not found, but still allow page to load with empty properties
+      setIsLoading(false)
+      return
+    }
+    
+    setClient(loadedClient)
 
-    // Filter properties based on client profile
-    const filtered = dummyProperties.filter((prop) => {
-      const withinBudget = prop.price <= (dummyClients[clientId]?.budget || 800000)
-      return withinBudget
+    // Map preferred location to state code
+    const locationToState: Record<string, string> = {
+      "Sydney": "NSW",
+      "Melbourne": "VIC",
+      "Brisbane": "QLD",
+      "Perth": "WA",
+      "Adelaide": "SA",
+    }
+    const preferredState = locationToState[loadedClient?.preferredLocation || ""] || ""
+
+    // Filter properties based on client profile and map to our Property type
+    const filtered = realData.filter((prop: any) => {
+      const withinBudget = prop["Price (AUD)"] <= (loadedClient?.budget || 0)
+      const inPreferredLocation = !preferredState || prop["State"] === preferredState
+      return withinBudget && inPreferredLocation
     })
 
-    setProperties(filtered)
-    setFilteredProperties(filtered)
+    const mapped = filtered.map((p: any) => ({
+      id: String(p.id ?? ""),
+      price: Number(p["Price (AUD)"] ?? 0),
+      address: String(p["Full Address"] ?? p["Full Address"] ?? ""),
+      suburb: String(p.Suburb ?? ""),
+      state: String(p.State ?? ""),
+      postcode: String(p.Postcode ?? ""),
+      propertyType: String(p["Property Type"] ?? "Unknown"),
+      bedrooms: Number(p.Bedrooms ?? 0),
+      bathrooms: Number(p.Bathrooms ?? 0),
+      carSpaces: Number(p["Car Spaces"] ?? 0),
+      estimatedRentalValueWeekly: Number(p["Estimated Rental Value (Weekly)"] ?? 0),
+      maintenanceCostAnnual: Number(p["Maintenance Cost (Annual)"] ?? 0),
+      medianPrice: Number(p["Suburb Median Price"] ?? 0), 
+      landSize: Number(p["Land Size (m²)"] ?? 0),
+      buildingArea: Number(p["Building Area (m²)"] ?? 0),
+      grannyFlat: String(p["Granny Flat"] ?? "No"),
+      facilities: String(p["Facilities"] ?? ""),
+      utilities: String(p["Utilities"] ?? ""),
+      nbnType: String(p["NBN Type"] ?? ""),
+      securityFeatures: String(p["Security Features"] ?? ""),
+      airConditioning: String(p["Air Conditioning"] ?? ""),
+      yearBuilt: Number(p["Year Built"] ?? 0),
+      energyRating: String(p["Energy Rating"] ?? ""),
+      agentName: String(p["Agent Name"] ?? ""),
+      agency: String(p["Agency"] ?? ""),
+      agencyContact: String(p["Agency Contact"] ?? ""),
+      propertyExternalId: String(p["Property ID"] ?? ""),
+      nearbySchoolsKm: Number(p["Nearby Schools (km)"] ?? 0),
+      nearbyTransportKm: Number(p["Nearby Transport (km)"] ?? 0),
+    })) as unknown as Property[]
+
+    setProperties(mapped)
+    setFilteredProperties(mapped)
     setFilters((prev) => ({
       ...prev,
-      maxPrice: dummyClients[clientId]?.budget || 800000,
+      maxPrice: loadedClient?.budget || 0,
     }))
     setIsLoading(false)
   }, [clientId])
