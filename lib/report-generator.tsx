@@ -1,19 +1,27 @@
-import type { PropertyAnalysis } from "./investment-calculator"
-import type { Property } from "./dummy-properties"
-import { formatCurrency, formatPercent } from "./analysis-utils"
+import type { PropertyAnalysis } from './investment-calculator';
+import type { Property } from './property-types';
+import { formatCurrency, formatPercent } from './analysis-utils';
 
 export interface ReportData {
-  clientName: string
-  clientEmail: string
-  clientSalary: number
-  clientBudget: number
-  property: Property
-  analysis: PropertyAnalysis
-  generatedDate: string
+  clientName: string;
+  clientEmail: string;
+  clientSalary: number;
+  clientBudget: number;
+  property: Property;
+  analysis: PropertyAnalysis;
+  generatedDate: string;
 }
 
 export function generateHTMLReport(data: ReportData): string {
-  const { clientName, clientEmail, clientSalary, clientBudget, property, analysis, generatedDate } = data
+  const {
+    clientName,
+    clientEmail,
+    clientSalary,
+    clientBudget,
+    property,
+    analysis,
+    generatedDate,
+  } = data;
 
   return `
 <!DOCTYPE html>
@@ -196,34 +204,48 @@ export function generateHTMLReport(data: ReportData): string {
       <h2>Property Details</h2>
       <div style="margin-bottom: 20px;">
         <h3 style="margin: 0 0 10px 0; color: #1f2937;">${property.address}</h3>
-        <p style="margin: 0; color: #6b7280;">${property.suburb}, ${property.state} ${property.postcode}</p>
+        <p style="margin: 0; color: #6b7280;">${property.suburb}, ${
+    property.state
+  } ${property.postcode}</p>
       </div>
       <div class="grid three">
         <div class="metric">
           <div class="metric-label">Property Type</div>
-          <div class="metric-value" style="font-size: 18px;">${property.propertyType}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.propertyType
+          }</div>
         </div>
         <div class="metric">
           <div class="metric-label">Year Built</div>
-          <div class="metric-value" style="font-size: 18px;">${property.yearBuilt}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.yearBuilt
+          }</div>
         </div>
         <div class="metric">
           <div class="metric-label">Energy Rating</div>
-          <div class="metric-value" style="font-size: 18px;">${property.energyRating}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.energyRating
+          }</div>
         </div>
       </div>
       <div class="grid three">
         <div class="metric">
           <div class="metric-label">Bedrooms</div>
-          <div class="metric-value" style="font-size: 18px;">${property.bedrooms}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.bedrooms
+          }</div>
         </div>
         <div class="metric">
           <div class="metric-label">Bathrooms</div>
-          <div class="metric-value" style="font-size: 18px;">${property.bathrooms}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.bathrooms
+          }</div>
         </div>
         <div class="metric">
           <div class="metric-label">Car Spaces</div>
-          <div class="metric-value" style="font-size: 18px;">${property.carSpaces}</div>
+          <div class="metric-value" style="font-size: 18px;">${
+            property.carSpaces
+          }</div>
         </div>
       </div>
     </div>
@@ -238,15 +260,21 @@ export function generateHTMLReport(data: ReportData): string {
         </div>
         <div class="key-metric-card">
           <div class="key-metric-label">Gross Yield</div>
-          <div class="key-metric-value">${formatPercent(analysis.grossYield)}</div>
+          <div class="key-metric-value">${formatPercent(
+            analysis.grossYield
+          )}</div>
         </div>
         <div class="key-metric-card">
           <div class="key-metric-label">5-Year ROI</div>
-          <div class="key-metric-value">${formatPercent(analysis.roiYear5)}</div>
+          <div class="key-metric-value">${formatPercent(
+            analysis.roiYear5
+          )}</div>
         </div>
         <div class="key-metric-card">
           <div class="key-metric-label">10-Year ROI</div>
-          <div class="key-metric-value">${formatPercent(analysis.roiYear10)}</div>
+          <div class="key-metric-value">${formatPercent(
+            analysis.roiYear10
+          )}</div>
         </div>
       </div>
     </div>
@@ -277,15 +305,29 @@ export function generateHTMLReport(data: ReportData): string {
         </tr>
         <tr>
           <td>Monthly Net Cash Flow</td>
-          <td style="color: ${analysis.monthlyNetCashFlow > 0 ? "#059669" : "#dc2626"}">${formatCurrency(analysis.monthlyNetCashFlow)}</td>
+          <td style="color: ${
+            analysis.monthlyNetCashFlow > 0 ? '#059669' : '#dc2626'
+          }">${formatCurrency(analysis.monthlyNetCashFlow)}</td>
         </tr>
         <tr>
           <td>Annual Net Cash Flow</td>
-          <td style="color: ${analysis.annualNetCashFlow > 0 ? "#059669" : "#dc2626"}">${formatCurrency(analysis.annualNetCashFlow)}</td>
+          <td style="color: ${
+            analysis.annualNetCashFlow > 0 ? '#059669' : '#dc2626'
+          }">${formatCurrency(analysis.annualNetCashFlow)}</td>
         </tr>
         <tr>
           <td>Debt Service Ratio</td>
           <td>${formatPercent(analysis.debtServiceRatio * 100)}</td>
+        </tr>
+        <tr style="background: #dbeafe;">
+          <td><strong>Break-Even Period</strong></td>
+          <td><strong>${
+            analysis.breakEvenYears >= 999
+              ? 'Not achievable'
+              : `${analysis.breakEvenYears.toFixed(
+                  1
+                )} years (${analysis.breakEvenMonths.toFixed(0)} months)`
+          }</strong></td>
         </tr>
       </table>
     </div>
@@ -321,7 +363,7 @@ export function generateHTMLReport(data: ReportData): string {
               analysis.annualMaintenanceCost +
               analysis.annualRates +
               analysis.annualInsurance +
-              analysis.annualBodyCorp,
+              analysis.annualBodyCorp
           )}</td>
         </tr>
       </table>
@@ -363,23 +405,31 @@ export function generateHTMLReport(data: ReportData): string {
   </div>
 </body>
 </html>
-  `
+  `;
 }
 
 export function generateCSVReport(data: ReportData): string {
-  const { clientName, clientEmail, clientSalary, clientBudget, property, analysis, generatedDate } = data
+  const {
+    clientName,
+    clientEmail,
+    clientSalary,
+    clientBudget,
+    property,
+    analysis,
+    generatedDate,
+  } = data;
 
   const lines = [
-    "Investment Property Analysis Report",
+    'Investment Property Analysis Report',
     `Generated: ${generatedDate}`,
-    "",
-    "CLIENT INFORMATION",
+    '',
+    'CLIENT INFORMATION',
     `Client Name,${clientName}`,
     `Client Email,${clientEmail}`,
     `Annual Salary,${clientSalary}`,
     `Investment Budget,${clientBudget}`,
-    "",
-    "PROPERTY DETAILS",
+    '',
+    'PROPERTY DETAILS',
     `Address,${property.address}`,
     `Suburb,${property.suburb}`,
     `State,${property.state}`,
@@ -389,8 +439,8 @@ export function generateCSVReport(data: ReportData): string {
     `Bedrooms,${property.bedrooms}`,
     `Bathrooms,${property.bathrooms}`,
     `Car Spaces,${property.carSpaces}`,
-    "",
-    "FINANCIAL METRICS",
+    '',
+    'FINANCIAL METRICS',
     `Purchase Price,${analysis.purchasePrice}`,
     `Weekly Rental Income,${property.estimatedRentalValueWeekly}`,
     `Annual Rental Income,${analysis.annualRentalIncome}`,
@@ -398,22 +448,32 @@ export function generateCSVReport(data: ReportData): string {
     `Monthly Mortgage,${analysis.monthlyMortgage}`,
     `Monthly Net Cash Flow,${analysis.monthlyNetCashFlow}`,
     `Annual Net Cash Flow,${analysis.annualNetCashFlow}`,
-    "",
-    "EXPENSE BREAKDOWN",
+    `Break-Even Period (Years),${
+      analysis.breakEvenYears >= 999
+        ? 'Not achievable'
+        : analysis.breakEvenYears
+    }`,
+    `Break-Even Period (Months),${
+      analysis.breakEvenYears >= 999
+        ? 'Not achievable'
+        : analysis.breakEvenMonths
+    }`,
+    '',
+    'EXPENSE BREAKDOWN',
     `Mortgage (Annual),${analysis.monthlyMortgage * 12}`,
     `Maintenance,${analysis.annualMaintenanceCost}`,
     `Rates,${analysis.annualRates}`,
     `Insurance,${analysis.annualInsurance}`,
     `Body Corp,${analysis.annualBodyCorp}`,
-    "",
-    "PROJECTIONS",
+    '',
+    'PROJECTIONS',
     `5-Year Value,${analysis.projectedValueYear5}`,
     `5-Year Capital Gain,${analysis.capitalGainYear5}`,
     `5-Year ROI %,${analysis.roiYear5}`,
     `10-Year Value,${analysis.projectedValueYear10}`,
     `10-Year Capital Gain,${analysis.capitalGainYear10}`,
     `10-Year ROI %,${analysis.roiYear10}`,
-  ]
+  ];
 
-  return lines.join("\n")
+  return lines.join('\n');
 }
