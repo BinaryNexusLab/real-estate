@@ -36,23 +36,32 @@ const dummyClients: Record<string, Client> = {
   '1': {
     id: '1',
     name: 'John Smith',
+    email: 'john@example.com',
+    salary: 120000,
     budget: 600000,
     preferredLocation: 'Sydney',
     investmentGoal: 'Capital Appreciation',
+    investmentPeriod: 10,
   },
   '2': {
     id: '2',
     name: 'Sarah Johnson',
+    email: 'sarah@example.com',
+    salary: 95000,
     budget: 450000,
     preferredLocation: 'Melbourne',
     investmentGoal: 'Rental Yield',
+    investmentPeriod: 15,
   },
   '3': {
     id: '3',
     name: 'Michael Chen',
+    email: 'michael@example.com',
+    salary: 150000,
     budget: 750000,
     preferredLocation: 'Brisbane',
     investmentGoal: 'Mixed Portfolio',
+    investmentPeriod: 7,
   },
 };
 
@@ -103,9 +112,12 @@ export default function PropertySearchPage() {
           loadedClient = {
             id: found.id,
             name: found.name,
+            email: found.email,
+            salary: found.salary,
             budget: found.budget,
             preferredLocation: found.preferredLocation,
             investmentGoal: found.investmentGoal,
+            investmentPeriod: found.investmentPeriod,
           };
         }
       }
@@ -222,18 +234,36 @@ export default function PropertySearchPage() {
       results = results.filter((p) => p.propertyType === filters.propertyType);
     }
 
-    // Apply sorting
+    // Apply sorting with client-specific parameters
     if (sortBy && client) {
+      // Calculate client-specific appreciation rate based on investment goal
+      let appreciationRate = 0.04;
+      if (client.investmentGoal === 'Capital Appreciation') {
+        appreciationRate = 0.05;
+      } else if (client.investmentGoal === 'Rental Yield') {
+        appreciationRate = 0.035;
+      }
+
       results = [...results].sort((a, b) => {
-        // Calculate metrics for both properties
+        // Calculate client-specific LVR for property A
+        const salaryToPriceA = (client.salary || 0) / a.price;
+        const lvrA =
+          salaryToPriceA >= 0.2 ? 0.85 : salaryToPriceA >= 0.15 ? 0.8 : 0.7;
+
+        // Calculate client-specific LVR for property B
+        const salaryToPriceB = (client.salary || 0) / b.price;
+        const lvrB =
+          salaryToPriceB >= 0.2 ? 0.85 : salaryToPriceB >= 0.15 ? 0.8 : 0.7;
+
+        // Calculate metrics for both properties with client-specific parameters
         const analysisA = calculateInvestmentAnalysis(
           a.price,
           a.estimatedRentalValueWeekly,
           a.maintenanceCostAnnual,
           0.07,
           client.investmentPeriod || 10,
-          0.04,
-          0.8
+          appreciationRate,
+          lvrA
         );
         const analysisB = calculateInvestmentAnalysis(
           b.price,
@@ -241,8 +271,8 @@ export default function PropertySearchPage() {
           b.maintenanceCostAnnual,
           0.07,
           client.investmentPeriod || 10,
-          0.04,
-          0.8
+          appreciationRate,
+          lvrB
         );
 
         switch (sortBy) {
@@ -488,24 +518,39 @@ export default function PropertySearchPage() {
         {/* Properties Grid */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
           {filteredProperties.map((property) => {
-            // Calculate investment analysis for each property
+            // Calculate client-specific parameters for this property
+            const salaryToPrice = (client.salary || 0) / property.price;
+            const lvr =
+              salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+
+            let appreciationRate = 0.04;
+            if (client.investmentGoal === 'Capital Appreciation') {
+              appreciationRate = 0.05;
+            } else if (client.investmentGoal === 'Rental Yield') {
+              appreciationRate = 0.035;
+            }
+
+            // Calculate investment analysis for each property with client-specific parameters
             const analysis = calculateInvestmentAnalysis(
               property.price,
               property.estimatedRentalValueWeekly,
               property.maintenanceCostAnnual,
               0.07,
               client.investmentPeriod || 10,
-              0.04,
-              0.8
+              appreciationRate,
+              lvr
             );
 
-            // Check if property aligns with client's goal
+            // Check if property aligns with client's goal based on calculated metrics
             const alignsWithGoal =
               (client.investmentGoal === 'Capital Appreciation' &&
-                analysis.roiYear5 > 20) ||
+                (analysis.roiYear5 > 25 ||
+                  analysis.capitalGainYear5 > property.price * 0.2)) ||
               (client.investmentGoal === 'Rental Yield' &&
-                analysis.grossYield > 4) ||
-              client.investmentGoal === 'Mixed Portfolio';
+                (analysis.grossYield > 4.5 || analysis.netYield > 3)) ||
+              (client.investmentGoal === 'Mixed Portfolio' &&
+                analysis.roiYear5 > 15 &&
+                analysis.grossYield > 3.5);
 
             return (
               <Link
