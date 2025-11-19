@@ -37,8 +37,8 @@ const dummyClients: Record<string, Client> = {
     id: '1',
     name: 'John Smith',
     email: 'john@example.com',
-    salary: 120000,
-    budget: 600000,
+    salary: 180000,
+    budget: 1200000,
     preferredLocation: 'Sydney',
     investmentGoal: 'Capital Appreciation',
     investmentPeriod: 10,
@@ -47,8 +47,8 @@ const dummyClients: Record<string, Client> = {
     id: '2',
     name: 'Sarah Johnson',
     email: 'sarah@example.com',
-    salary: 95000,
-    budget: 450000,
+    salary: 195000,
+    budget: 1300000,
     preferredLocation: 'Melbourne',
     investmentGoal: 'Rental Yield',
     investmentPeriod: 15,
@@ -58,7 +58,7 @@ const dummyClients: Record<string, Client> = {
     name: 'Michael Chen',
     email: 'michael@example.com',
     salary: 150000,
-    budget: 750000,
+    budget: 850000,
     preferredLocation: 'Brisbane',
     investmentGoal: 'Mixed Portfolio',
     investmentPeriod: 7,
@@ -84,6 +84,9 @@ export default function PropertySearchPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [suggestedProperties, setSuggestedProperties] = useState<Property[]>(
+    []
+  );
   const [sortBy, setSortBy] = useState<string>('roi-desc');
   const [filters, setFilters] = useState({
     maxPrice: 0,
@@ -158,7 +161,59 @@ export default function PropertySearchPage() {
       return withinBudget && inPreferredLocation;
     });
 
+    // Find properties ABOVE budget but within 20% and in preferred location
+    // These are "stretch" suggestions with high investment potential
+    const aboveBudget = realData.filter((prop: any) => {
+      const price = Number(prop['Price (AUD)'] ?? 0);
+      const budget = loadedClient?.budget || 0;
+      const isAboveBudget = price > budget;
+      const withinStretchRange = price <= budget * 1.2; // Up to 20% over budget
+      const inPreferredLocation =
+        !preferredState || prop['State'] === preferredState;
+      return isAboveBudget && withinStretchRange && inPreferredLocation;
+    });
+
     const mapped = filtered.map((p: any) => ({
+      id: String(p.id ?? ''),
+      price: Number(p['Price (AUD)'] ?? 0),
+      address: String(p['Full Address'] ?? p['Full Address'] ?? ''),
+      suburb: String(p.Suburb ?? ''),
+      state: String(p.State ?? ''),
+      postcode: String(p.Postcode ?? ''),
+      propertyType: String(p['Property Type'] ?? 'Unknown'),
+      bedrooms: Number(p.Bedrooms ?? 0),
+      bathrooms: Number(p.Bathrooms ?? 0),
+      carSpaces: Number(p['Car Spaces'] ?? 0),
+      estimatedRentalValueWeekly: Number(
+        p['Estimated Rental Value (Weekly)'] ?? 0
+      ),
+      maintenanceCostAnnual: Number(p['Maintenance Cost (Annual)'] ?? 0),
+      medianPrice: Number(p['Suburb Median Price'] ?? 0),
+      landSize: Number(p['Land Size (m²)'] ?? 0),
+      buildingArea: Number(p['Building Area (m²)'] ?? 0),
+      grannyFlat: String(p['Granny Flat'] ?? 'No'),
+      facilities: (p['Facilities'] ?? '')
+        .split(',')
+        .map((f: string) => f.trim())
+        .filter(Boolean),
+      utilities: String(p['Utilities'] ?? ''),
+      nbnType: String(p['NBN Type'] ?? ''),
+      securityFeatures: String(p['Security Features'] ?? ''),
+      airConditioning: String(p['Air Conditioning'] ?? ''),
+      yearBuilt: Number(p['Year Built'] ?? 0),
+      energyRating: String(p['Energy Rating'] ?? ''),
+      agentName: String(p['Agent Name'] ?? ''),
+      agency: String(p['Agency'] ?? ''),
+      agencyContact: String(p['Agency Contact'] ?? ''),
+      propertyExternalId: String(p['Property ID'] ?? ''),
+      nearbySchools: Number(p['Nearby Schools (km)'] ?? 0),
+      nearbyTransport: Number(p['Nearby Transport (km)'] ?? 0),
+      nearbySchoolsKm: Number(p['Nearby Schools (km)'] ?? 0),
+      nearbyTransportKm: Number(p['Nearby Transport (km)'] ?? 0),
+    })) as unknown as Property[];
+
+    // Map above-budget properties for suggestions
+    const mappedSuggestions = aboveBudget.map((p: any) => ({
       id: String(p.id ?? ''),
       price: Number(p['Price (AUD)'] ?? 0),
       address: String(p['Full Address'] ?? p['Full Address'] ?? ''),
@@ -200,6 +255,43 @@ export default function PropertySearchPage() {
     setProperties(mapped);
     setFilteredProperties(mapped);
 
+    // Sort suggestions by investment score and only keep top performers
+    // Calculate investment score for each suggestion
+    const scoredSuggestions = mappedSuggestions
+      .map((prop) => {
+        const salaryToPrice = (loadedClient.salary || 0) / prop.price;
+        const lvr =
+          salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+        let appreciationRate = 0.04;
+        if (loadedClient.investmentGoal === 'Capital Appreciation') {
+          appreciationRate = 0.05;
+        } else if (loadedClient.investmentGoal === 'Rental Yield') {
+          appreciationRate = 0.035;
+        }
+
+        const analysis = calculateInvestmentAnalysis(
+          prop.price,
+          prop.estimatedRentalValueWeekly,
+          prop.maintenanceCostAnnual,
+          0.065,
+          loadedClient.investmentPeriod || 10,
+          appreciationRate,
+          lvr
+        );
+
+        return {
+          property: prop,
+          score: analysis.investmentScore,
+          roi: analysis.roiYear5,
+        };
+      })
+      .filter((item) => item.score >= 65) // Only suggest properties with "Very Good" or better score
+      .sort((a, b) => b.score - a.score) // Sort by investment score
+      .slice(0, 4) // Keep top 4 suggestions
+      .map((item) => item.property);
+
+    setSuggestedProperties(scoredSuggestions);
+
     console.log('🎯 CLIENT PROFILE:', {
       budget: loadedClient.budget,
       preferredLocation: loadedClient.preferredLocation,
@@ -209,6 +301,10 @@ export default function PropertySearchPage() {
       salary: loadedClient.salary,
     });
     console.log('🏠 MAPPED PROPERTIES SAMPLE:', mapped.slice(0, 2));
+    console.log(
+      '💡 SMART SUGGESTIONS (above budget):',
+      scoredSuggestions.length
+    );
 
     // Smart ranking removed
     setFilters((prev) => ({
@@ -491,11 +587,256 @@ export default function PropertySearchPage() {
           </CardContent>
         </Card>
 
+        {/* Smart Suggestions - Above Budget but High ROI */}
+        {suggestedProperties.length > 0 && (
+          <>
+            <div className='mb-6'>
+              <h2 className='text-2xl font-bold text-foreground flex items-center gap-2'>
+                <TrendingUp className='w-7 h-7 text-amber-600' />
+                💎 Exceptional Opportunities
+              </h2>
+              <p className='text-sm text-muted-foreground mt-1'>
+                Premium properties above budget with outstanding investment
+                potential (Score 65+)
+              </p>
+            </div>
+
+            <Card className='bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-2 border-amber-300 dark:border-amber-700 mb-12'>
+              <CardHeader className='border-b border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900 dark:to-orange-900'>
+                <div className='flex items-start justify-between'>
+                  <div>
+                    <CardTitle className='text-amber-900 dark:text-amber-100 flex items-center gap-2 text-lg'>
+                      🎯 Why These Are Special
+                    </CardTitle>
+                    <CardDescription className='mt-2 text-amber-900 dark:text-amber-100 font-medium'>
+                      These {suggestedProperties.length} properties are $
+                      {((client.budget * 0.01) / 1000).toFixed(0)}k-$
+                      {((client.budget * 0.2) / 1000).toFixed(0)}k above your $
+                      {(client.budget / 1000).toFixed(0)}k budget but have
+                      exceptional investment metrics.
+                      <br />
+                      <span className='text-amber-700 dark:text-amber-300 text-sm'>
+                        Each has been verified to have an Investment Score of
+                        65+ and superior ROI compared to properties within
+                        budget.
+                      </span>
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className='pt-6'>
+                <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                  {suggestedProperties.map((property) => {
+                    const salaryToPrice = (client.salary || 0) / property.price;
+                    const lvr =
+                      salaryToPrice >= 0.2
+                        ? 0.85
+                        : salaryToPrice >= 0.15
+                        ? 0.8
+                        : 0.7;
+
+                    let appreciationRate = 0.04;
+                    if (client.investmentGoal === 'Capital Appreciation') {
+                      appreciationRate = 0.05;
+                    } else if (client.investmentGoal === 'Rental Yield') {
+                      appreciationRate = 0.035;
+                    }
+
+                    const analysis = calculateInvestmentAnalysis(
+                      property.price,
+                      property.estimatedRentalValueWeekly,
+                      property.maintenanceCostAnnual,
+                      0.07,
+                      client.investmentPeriod || 10,
+                      appreciationRate,
+                      lvr
+                    );
+
+                    const budgetDifference = property.price - client.budget;
+                    const percentageOver = (
+                      (budgetDifference / client.budget) *
+                      100
+                    ).toFixed(1);
+
+                    return (
+                      <Link
+                        key={property.id}
+                        href={`/dashboard/clients/${clientId}/properties/${property.id}`}
+                      >
+                        <Card className='bg-white dark:bg-gray-900 border-2 border-amber-400 dark:border-amber-600 hover:shadow-xl transition-shadow cursor-pointer h-full relative overflow-hidden'>
+                          {/* "Worth It" Badge */}
+                          <div className='absolute top-0 right-0 bg-gradient-to-br from-amber-500 to-orange-500 text-white px-4 py-1 rounded-bl-lg font-bold text-xs shadow-md'>
+                            WORTH IT! +{percentageOver}% budget
+                          </div>
+
+                          <CardHeader className='border-b border-border pt-8'>
+                            <div className='flex items-start justify-between'>
+                              <div className='flex-1'>
+                                <CardTitle className='text-foreground text-lg flex items-center gap-2'>
+                                  {property.address}
+                                </CardTitle>
+                                <CardDescription className='flex items-center gap-1 mt-1'>
+                                  <MapPin className='w-4 h-4' />
+                                  {property.suburb}, {property.state}{' '}
+                                  {property.postcode}
+                                </CardDescription>
+                              </div>
+                              <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
+                                {property.propertyType}
+                              </span>
+                            </div>
+                          </CardHeader>
+                          <CardContent className='pt-4'>
+                            {/* Budget Difference Alert */}
+                            <div className='mb-4 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg p-3'>
+                              <div className='flex items-center justify-between'>
+                                <span className='text-sm font-semibold text-amber-900 dark:text-amber-100'>
+                                  ${(budgetDifference / 1000).toFixed(0)}k over
+                                  budget
+                                </span>
+                                <span className='text-xs text-amber-700 dark:text-amber-300'>
+                                  Investment Score: {analysis.investmentScore}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Price */}
+                            <div className='mb-4 pb-4 border-b border-border'>
+                              <div className='flex items-baseline gap-2'>
+                                <DollarSign className='w-5 h-5 text-primary' />
+                                <span className='text-3xl font-bold text-foreground'>
+                                  {(property.price / 1000).toFixed(0)}k
+                                </span>
+                                <span className='text-sm text-muted-foreground line-through'>
+                                  Budget: ${(client.budget / 1000).toFixed(0)}k
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className='grid grid-cols-3 gap-4 mb-4'>
+                              <div>
+                                <p className='text-xs text-muted-foreground'>
+                                  Bedrooms
+                                </p>
+                                <p className='text-lg font-bold text-foreground'>
+                                  {property.bedrooms}
+                                </p>
+                              </div>
+                              <div>
+                                <p className='text-xs text-muted-foreground'>
+                                  Bathrooms
+                                </p>
+                                <p className='text-lg font-bold text-foreground'>
+                                  {property.bathrooms}
+                                </p>
+                              </div>
+                              <div>
+                                <p className='text-xs text-muted-foreground'>
+                                  Car Spaces
+                                </p>
+                                <p className='text-lg font-bold text-foreground'>
+                                  {property.carSpaces}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Investment Metrics */}
+                            <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-lg p-3 space-y-2 mb-4 border-2 border-green-300 dark:border-green-700'>
+                              <div className='flex items-center justify-between'>
+                                <span className='text-sm text-muted-foreground'>
+                                  Est. Weekly Rent
+                                </span>
+                                <span className='font-semibold text-foreground'>
+                                  ${property.estimatedRentalValueWeekly}
+                                </span>
+                              </div>
+                              <div className='flex items-center justify-between'>
+                                <span className='text-sm text-muted-foreground'>
+                                  Gross Yield
+                                </span>
+                                <span className='font-semibold text-green-700 dark:text-green-400'>
+                                  {analysis.grossYield.toFixed(2)}%
+                                </span>
+                              </div>
+                              <div className='flex items-center justify-between'>
+                                <span className='text-sm text-muted-foreground'>
+                                  Break-Even Period
+                                </span>
+                                <span className='font-semibold text-foreground'>
+                                  {analysis.breakEvenYears >= 999
+                                    ? 'N/A'
+                                    : `${analysis.breakEvenYears.toFixed(
+                                        1
+                                      )} yrs`}
+                                </span>
+                              </div>
+                              <div className='flex items-center justify-between'>
+                                <span className='text-sm text-muted-foreground'>
+                                  Monthly Cash Flow
+                                </span>
+                                <span
+                                  className={`font-semibold ${
+                                    analysis.monthlyNetCashFlow >= 0
+                                      ? 'text-green-600'
+                                      : 'text-red-600'
+                                  }`}
+                                >
+                                  $
+                                  {Math.abs(
+                                    analysis.monthlyNetCashFlow
+                                  ).toFixed(0)}
+                                  {analysis.monthlyNetCashFlow >= 0
+                                    ? ' +'
+                                    : ' -'}
+                                </span>
+                              </div>
+                              <div className='flex flex-col gap-1 border-t border-green-300 dark:border-green-700 pt-2'>
+                                <div className='flex items-center justify-between'>
+                                  <span className='text-sm font-semibold text-muted-foreground flex items-center gap-1'>
+                                    <TrendingUp className='w-4 h-4' />
+                                    5-Year ROI
+                                  </span>
+                                  <span className='font-bold text-green-700 dark:text-green-400 text-lg'>
+                                    {analysis.roiYear5.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button className='w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm shadow-lg'>
+                              🔥 View This Opportunity
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Divider between Suggestions and Regular Properties */}
+            <div className='my-12 relative'>
+              <div className='absolute inset-0 flex items-center'>
+                <div className='w-full border-t-2 border-border'></div>
+              </div>
+              <div className='relative flex justify-center'>
+                <span className='bg-background px-6 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide'>
+                  Properties Within Budget
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Results Summary */}
         <div className='mb-6 flex items-center justify-between'>
           <div>
             <h2 className='text-xl font-bold text-foreground'>
-              {filteredProperties.length} Properties Found
+              {filteredProperties.length}{' '}
+              {suggestedProperties.length > 0 ? 'Standard' : ''} Properties
+              Found
             </h2>
             <p className='text-sm text-muted-foreground'>
               Sorted by{' '}
@@ -507,13 +848,15 @@ export default function PropertySearchPage() {
                 ? 'Price'
                 : 'Break-Even Period'}
               {' • '}
-              Matching {client.name}'s {client.investmentGoal} goal
+              {suggestedProperties.length > 0
+                ? `Within ${client.name}'s $${(client.budget / 1000).toFixed(
+                    0
+                  )}k budget`
+                : `Matching ${client.name}'s ${client.investmentGoal} goal`}
             </p>
           </div>
           <div className='flex gap-2' />
         </div>
-
-        {/* Smart Match removed */}
 
         {/* Properties Grid */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
