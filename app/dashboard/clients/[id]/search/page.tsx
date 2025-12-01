@@ -20,50 +20,7 @@ import { type Property } from '@/lib/property-types';
 import { calculateInvestmentAnalysis } from '@/lib/investment-calculator';
 // Smart matching removed per latest requirements
 import { realData } from '@/app/data/real_data';
-
-interface Client {
-  id: string;
-  name: string;
-  email?: string;
-  salary?: number;
-  budget: number;
-  preferredLocation: string;
-  investmentGoal: string;
-  investmentPeriod?: number;
-}
-
-const dummyClients: Record<string, Client> = {
-  '1': {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    salary: 180000,
-    budget: 1200000,
-    preferredLocation: 'Sydney',
-    investmentGoal: 'Capital Appreciation',
-    investmentPeriod: 10,
-  },
-  '2': {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    salary: 195000,
-    budget: 1300000,
-    preferredLocation: 'Melbourne',
-    investmentGoal: 'Rental Yield',
-    investmentPeriod: 15,
-  },
-  '3': {
-    id: '3',
-    name: 'Michael Chen',
-    email: 'michael@example.com',
-    salary: 150000,
-    budget: 850000,
-    preferredLocation: 'Brisbane',
-    investmentGoal: 'Mixed Portfolio',
-    investmentPeriod: 7,
-  },
-};
+import { getClientById, type Client } from '@/app/data/client-data';
 
 // Helper function to convert location to state code
 function getStateCode(location: string): string {
@@ -94,6 +51,7 @@ export default function PropertySearchPage() {
     propertyType: 'All',
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(5);
   // Smart Match removed
 
   useEffect(() => {
@@ -105,33 +63,24 @@ export default function PropertySearchPage() {
 
     let loadedClient: Client | null = null;
 
-    // Try to load from localStorage first (for newly created clients)
+    // Load client from client-data.ts or localStorage
     try {
-      const stored = localStorage.getItem('clients');
-      if (stored) {
-        const parsed = JSON.parse(stored) as any[];
-        const found = parsed.find((c) => c.id === clientId);
-        if (found) {
-          loadedClient = {
-            id: found.id,
-            name: found.name,
-            email: found.email,
-            salary: found.salary,
-            budget: found.budget,
-            preferredLocation: found.preferredLocation,
-            investmentGoal: found.investmentGoal,
-            investmentPeriod: found.investmentPeriod,
-          };
-        }
+      const foundClient = getClientById(clientId);
+      if (foundClient) {
+        loadedClient = {
+          id: foundClient.id,
+          name: foundClient.name,
+          email: foundClient.email,
+          salary: foundClient.salary,
+          budget: foundClient.budget,
+          preferredLocation: foundClient.preferredLocation,
+          investmentGoal: foundClient.investmentGoal,
+          investmentPeriod: foundClient.investmentPeriod,
+        };
       }
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Failed to load client from localStorage', e);
-    }
-
-    // Fallback to dummy clients
-    if (!loadedClient && dummyClients[clientId]) {
-      loadedClient = dummyClients[clientId];
+      console.warn('Failed to load client', e);
     }
 
     if (!loadedClient) {
@@ -292,7 +241,7 @@ export default function PropertySearchPage() {
 
     setSuggestedProperties(scoredSuggestions);
 
-    console.log('🎯 CLIENT PROFILE:', {
+    console.log('CLIENT PROFILE:', {
       budget: loadedClient.budget,
       preferredLocation: loadedClient.preferredLocation,
       preferredState,
@@ -587,13 +536,231 @@ export default function PropertySearchPage() {
           </CardContent>
         </Card>
 
-        {/* Smart Suggestions - Above Budget but High ROI */}
+        {/* Results Summary */}
+        <div className='mb-6 flex items-center justify-between'>
+          <div>
+            <h2 className='text-xl font-bold text-foreground'>
+              {filteredProperties.length}{' '}
+              {suggestedProperties.length > 0 ? 'Standard' : ''} Properties
+              Found
+            </h2>
+            <p className='text-sm text-muted-foreground'>
+              Sorted by{' '}
+              {sortBy.includes('roi')
+                ? 'ROI'
+                : sortBy.includes('yield')
+                ? 'Yield'
+                : sortBy.includes('price')
+                ? 'Price'
+                : 'Break-Even Period'}
+              {' • '}
+              {suggestedProperties.length > 0
+                ? `Within ${client.name}'s $${(client.budget / 1000).toFixed(
+                    0
+                  )}k budget`
+                : `Matching ${client.name}'s ${client.investmentGoal} goal`}
+            </p>
+          </div>
+          <div className='flex gap-2' />
+        </div>
+
+        {/* Properties Grid */}
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+          {filteredProperties.slice(0, visibleCount).map((property) => {
+            // Calculate client-specific parameters for this property
+            const salaryToPrice = (client.salary || 0) / property.price;
+            const lvr =
+              salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+
+            let appreciationRate = 0.04;
+            if (client.investmentGoal === 'Capital Appreciation') {
+              appreciationRate = 0.05;
+            } else if (client.investmentGoal === 'Rental Yield') {
+              appreciationRate = 0.035;
+            }
+
+            // Calculate investment analysis for each property with client-specific parameters
+            const analysis = calculateInvestmentAnalysis(
+              property.price,
+              property.estimatedRentalValueWeekly,
+              property.maintenanceCostAnnual,
+              0.07,
+              client.investmentPeriod || 10,
+              appreciationRate,
+              lvr
+            );
+
+            // Check if property aligns with client's goal based on calculated metrics
+            const alignsWithGoal =
+              (client.investmentGoal === 'Capital Appreciation' &&
+                (analysis.roiYear5 > 25 ||
+                  analysis.capitalGainYear5 > property.price * 0.2)) ||
+              (client.investmentGoal === 'Rental Yield' &&
+                (analysis.grossYield > 4.5 || analysis.netYield > 3)) ||
+              (client.investmentGoal === 'Mixed Portfolio' &&
+                analysis.roiYear5 > 15 &&
+                analysis.grossYield > 3.5);
+
+            return (
+              <Link
+                key={property.id}
+                href={`/dashboard/clients/${clientId}/properties/${property.id}`}
+              >
+                <Card
+                  className={`bg-card border-border hover:shadow-lg transition-shadow cursor-pointer h-full ${
+                    alignsWithGoal ? 'ring-2 ring-accent/50' : ''
+                  }`}
+                >
+                  <CardHeader className='border-b border-border'>
+                    <div className='flex items-start justify-between'>
+                      <div className='flex-1'>
+                        <CardTitle className='text-foreground text-lg flex items-center gap-2'>
+                          {property.address}
+                          {alignsWithGoal && (
+                            <span className='text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-normal'>
+                              Matches Goal
+                            </span>
+                          )}
+                        </CardTitle>
+                        <CardDescription className='flex items-center gap-1 mt-1'>
+                          <MapPin className='w-4 h-4' />
+                          {property.suburb}, {property.state}{' '}
+                          {property.postcode}
+                        </CardDescription>
+                      </div>
+                      <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
+                        {property.propertyType}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='pt-4'>
+                    {/* Price */}
+                    <div className='mb-4 pb-4 border-b border-border'>
+                      <div className='flex items-baseline gap-2'>
+                        <DollarSign className='w-5 h-5 text-primary' />
+                        <span className='text-3xl font-bold text-foreground'>
+                          {(property.price / 1000).toFixed(0)}k
+                        </span>
+                        <span className='text-sm text-muted-foreground'>
+                          (Median: ${(property.medianPrice / 1000).toFixed(0)}k)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className='grid grid-cols-3 gap-4 mb-4'>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>
+                          Bedrooms
+                        </p>
+                        <p className='text-lg font-bold text-foreground'>
+                          {property.bedrooms}
+                        </p>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>
+                          Bathrooms
+                        </p>
+                        <p className='text-lg font-bold text-foreground'>
+                          {property.bathrooms}
+                        </p>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>
+                          Car Spaces
+                        </p>
+                        <p className='text-lg font-bold text-foreground'>
+                          {property.carSpaces}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Investment Metrics */}
+                    <div className='bg-muted/50 rounded-lg p-3 space-y-2 mb-4'>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-sm text-muted-foreground'>
+                          Est. Weekly Rent
+                        </span>
+                        <span className='font-semibold text-foreground'>
+                          ${property.estimatedRentalValueWeekly}
+                        </span>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-sm text-muted-foreground'>
+                          Gross Yield
+                        </span>
+                        <span className='font-semibold text-foreground'>
+                          {analysis.grossYield.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-sm text-muted-foreground'>
+                          Break-Even Period
+                        </span>
+                        <span className='font-semibold text-foreground'>
+                          {analysis.breakEvenYears >= 999
+                            ? 'N/A'
+                            : `${analysis.breakEvenYears.toFixed(1)} yrs`}
+                        </span>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-sm text-muted-foreground'>
+                          Monthly Cash Flow
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            analysis.monthlyNetCashFlow >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}
+                        >
+                          ${Math.abs(analysis.monthlyNetCashFlow).toFixed(0)}
+                          {analysis.monthlyNetCashFlow >= 0 ? ' +' : ' -'}
+                        </span>
+                      </div>
+                      <div className='flex flex-col gap-1 border-t border-border pt-2'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm font-semibold text-muted-foreground flex items-center gap-1'>
+                            <TrendingUp className='w-4 h-4' />
+                            5-Year ROI
+                          </span>
+                          <span className='font-bold text-accent text-lg'>
+                            {analysis.roiYear5.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button className='w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm'>
+                      View Full Analysis
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* See More Button */}
+        {filteredProperties.length > visibleCount && (
+          <div className='flex justify-center mt-8'>
+            <Button
+              onClick={() => setVisibleCount((prev) => prev + 5)}
+              className='bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3'
+            >
+              See More Properties ({filteredProperties.length - visibleCount}{' '}
+              remaining)
+            </Button>
+          </div>
+        )}
+
+        {/* Exceptional Opportunities - moved after Standard Properties */}
         {suggestedProperties.length > 0 && (
           <>
-            <div className='mb-6'>
+            <div className='mt-12 mb-6'>
               <h2 className='text-2xl font-bold text-foreground flex items-center gap-2'>
                 <TrendingUp className='w-7 h-7 text-amber-600' />
-                💎 Exceptional Opportunities
+                Exceptional Opportunities
               </h2>
               <p className='text-sm text-muted-foreground mt-1'>
                 Premium properties above budget with outstanding investment
@@ -606,7 +773,7 @@ export default function PropertySearchPage() {
                 <div className='flex items-start justify-between'>
                   <div>
                     <CardTitle className='text-amber-900 dark:text-amber-100 flex items-center gap-2 text-lg'>
-                      🎯 Why These Are Special
+                      Why These Are Special
                     </CardTitle>
                     <CardDescription className='mt-2 text-amber-900 dark:text-amber-100 font-medium'>
                       These {suggestedProperties.length} properties are $
@@ -805,7 +972,7 @@ export default function PropertySearchPage() {
                             </div>
 
                             <Button className='w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm shadow-lg'>
-                              🔥 View This Opportunity
+                              View This Opportunity
                             </Button>
                           </CardContent>
                         </Card>
@@ -815,225 +982,8 @@ export default function PropertySearchPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Divider between Suggestions and Regular Properties */}
-            <div className='my-12 relative'>
-              <div className='absolute inset-0 flex items-center'>
-                <div className='w-full border-t-2 border-border'></div>
-              </div>
-              <div className='relative flex justify-center'>
-                <span className='bg-background px-6 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide'>
-                  Properties Within Budget
-                </span>
-              </div>
-            </div>
           </>
         )}
-
-        {/* Results Summary */}
-        <div className='mb-6 flex items-center justify-between'>
-          <div>
-            <h2 className='text-xl font-bold text-foreground'>
-              {filteredProperties.length}{' '}
-              {suggestedProperties.length > 0 ? 'Standard' : ''} Properties
-              Found
-            </h2>
-            <p className='text-sm text-muted-foreground'>
-              Sorted by{' '}
-              {sortBy.includes('roi')
-                ? 'ROI'
-                : sortBy.includes('yield')
-                ? 'Yield'
-                : sortBy.includes('price')
-                ? 'Price'
-                : 'Break-Even Period'}
-              {' • '}
-              {suggestedProperties.length > 0
-                ? `Within ${client.name}'s $${(client.budget / 1000).toFixed(
-                    0
-                  )}k budget`
-                : `Matching ${client.name}'s ${client.investmentGoal} goal`}
-            </p>
-          </div>
-          <div className='flex gap-2' />
-        </div>
-
-        {/* Properties Grid */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-          {filteredProperties.map((property) => {
-            // Calculate client-specific parameters for this property
-            const salaryToPrice = (client.salary || 0) / property.price;
-            const lvr =
-              salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
-
-            let appreciationRate = 0.04;
-            if (client.investmentGoal === 'Capital Appreciation') {
-              appreciationRate = 0.05;
-            } else if (client.investmentGoal === 'Rental Yield') {
-              appreciationRate = 0.035;
-            }
-
-            // Calculate investment analysis for each property with client-specific parameters
-            const analysis = calculateInvestmentAnalysis(
-              property.price,
-              property.estimatedRentalValueWeekly,
-              property.maintenanceCostAnnual,
-              0.07,
-              client.investmentPeriod || 10,
-              appreciationRate,
-              lvr
-            );
-
-            // Check if property aligns with client's goal based on calculated metrics
-            const alignsWithGoal =
-              (client.investmentGoal === 'Capital Appreciation' &&
-                (analysis.roiYear5 > 25 ||
-                  analysis.capitalGainYear5 > property.price * 0.2)) ||
-              (client.investmentGoal === 'Rental Yield' &&
-                (analysis.grossYield > 4.5 || analysis.netYield > 3)) ||
-              (client.investmentGoal === 'Mixed Portfolio' &&
-                analysis.roiYear5 > 15 &&
-                analysis.grossYield > 3.5);
-
-            return (
-              <Link
-                key={property.id}
-                href={`/dashboard/clients/${clientId}/properties/${property.id}`}
-              >
-                <Card
-                  className={`bg-card border-border hover:shadow-lg transition-shadow cursor-pointer h-full ${
-                    alignsWithGoal ? 'ring-2 ring-accent/50' : ''
-                  }`}
-                >
-                  <CardHeader className='border-b border-border'>
-                    <div className='flex items-start justify-between'>
-                      <div className='flex-1'>
-                        <CardTitle className='text-foreground text-lg flex items-center gap-2'>
-                          {property.address}
-                          {alignsWithGoal && (
-                            <span className='text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-normal'>
-                              Matches Goal
-                            </span>
-                          )}
-                        </CardTitle>
-                        <CardDescription className='flex items-center gap-1 mt-1'>
-                          <MapPin className='w-4 h-4' />
-                          {property.suburb}, {property.state}{' '}
-                          {property.postcode}
-                        </CardDescription>
-                      </div>
-                      <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
-                        {property.propertyType}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='pt-4'>
-                    {/* Price */}
-                    <div className='mb-4 pb-4 border-b border-border'>
-                      <div className='flex items-baseline gap-2'>
-                        <DollarSign className='w-5 h-5 text-primary' />
-                        <span className='text-3xl font-bold text-foreground'>
-                          {(property.price / 1000).toFixed(0)}k
-                        </span>
-                        <span className='text-sm text-muted-foreground'>
-                          (Median: ${(property.medianPrice / 1000).toFixed(0)}k)
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Details Grid */}
-                    <div className='grid grid-cols-3 gap-4 mb-4'>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>
-                          Bedrooms
-                        </p>
-                        <p className='text-lg font-bold text-foreground'>
-                          {property.bedrooms}
-                        </p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>
-                          Bathrooms
-                        </p>
-                        <p className='text-lg font-bold text-foreground'>
-                          {property.bathrooms}
-                        </p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>
-                          Car Spaces
-                        </p>
-                        <p className='text-lg font-bold text-foreground'>
-                          {property.carSpaces}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Investment Metrics */}
-                    <div className='bg-muted/50 rounded-lg p-3 space-y-2 mb-4'>
-                      <div className='flex items-center justify-between'>
-                        <span className='text-sm text-muted-foreground'>
-                          Est. Weekly Rent
-                        </span>
-                        <span className='font-semibold text-foreground'>
-                          ${property.estimatedRentalValueWeekly}
-                        </span>
-                      </div>
-                      <div className='flex items-center justify-between'>
-                        <span className='text-sm text-muted-foreground'>
-                          Gross Yield
-                        </span>
-                        <span className='font-semibold text-foreground'>
-                          {analysis.grossYield.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className='flex items-center justify-between'>
-                        <span className='text-sm text-muted-foreground'>
-                          Break-Even Period
-                        </span>
-                        <span className='font-semibold text-foreground'>
-                          {analysis.breakEvenYears >= 999
-                            ? 'N/A'
-                            : `${analysis.breakEvenYears.toFixed(1)} yrs`}
-                        </span>
-                      </div>
-                      <div className='flex items-center justify-between'>
-                        <span className='text-sm text-muted-foreground'>
-                          Monthly Cash Flow
-                        </span>
-                        <span
-                          className={`font-semibold ${
-                            analysis.monthlyNetCashFlow >= 0
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          ${Math.abs(analysis.monthlyNetCashFlow).toFixed(0)}
-                          {analysis.monthlyNetCashFlow >= 0 ? ' +' : ' -'}
-                        </span>
-                      </div>
-                      <div className='flex flex-col gap-1 border-t border-border pt-2'>
-                        <div className='flex items-center justify-between'>
-                          <span className='text-sm font-semibold text-muted-foreground flex items-center gap-1'>
-                            <TrendingUp className='w-4 h-4' />
-                            5-Year ROI
-                          </span>
-                          <span className='font-bold text-accent text-lg'>
-                            {analysis.roiYear5.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button className='w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm'>
-                      View Full Analysis
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
 
         {/* Smart Match empty state removed */}
 

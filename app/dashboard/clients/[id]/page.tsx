@@ -12,50 +12,7 @@ import {
 import { ArrowLeft, Home } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  budget: number;
-  salary: number;
-  investmentGoal: string;
-  preferredLocation: string;
-  investmentPeriod: number;
-}
-
-const dummyClients: Record<string, Client> = {
-  '1': {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    budget: 1200000,
-    salary: 180000,
-    investmentGoal: 'Capital Appreciation',
-    preferredLocation: 'Sydney',
-    investmentPeriod: 10,
-  },
-  '2': {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    budget: 1300000,
-    salary: 195000,
-    investmentGoal: 'Rental Yield',
-    preferredLocation: 'Melbourne',
-    investmentPeriod: 15,
-  },
-  '3': {
-    id: '3',
-    name: 'Michael Chen',
-    email: 'michael@example.com',
-    budget: 850000,
-    salary: 150000,
-    investmentGoal: 'Mixed Portfolio',
-    preferredLocation: 'Brisbane',
-    investmentPeriod: 7,
-  },
-};
+import { getClientById, type Client } from '@/app/data/client-data';
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -71,25 +28,8 @@ export default function ClientDetailPage() {
     }
 
     try {
-      const stored = localStorage.getItem('clients');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Client[];
-        const found = parsed.find((c) => c.id === clientId);
-        if (found) {
-          setClient(found);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // fallback to dummy clients
-      if (dummyClients[clientId]) {
-        setClient(dummyClients[clientId]);
-        setIsLoading(false);
-        return;
-      }
-
-      // not found - keep client null so UI shows "Client not found"
+      const foundClient = getClientById(clientId);
+      setClient(foundClient);
       setIsLoading(false);
     } catch (e) {
       // eslint-disable-next-line no-console

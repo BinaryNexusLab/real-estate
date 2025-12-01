@@ -50,6 +50,10 @@ import {
   Cell,
 } from 'recharts';
 import { realData } from '@/app/data/real_data';
+import {
+  getClientById,
+  type Client as ClientType,
+} from '@/app/data/client-data';
 
 interface Client {
   id: string;
@@ -60,36 +64,6 @@ interface Client {
   investmentPeriod?: number;
   investmentGoal?: string;
 }
-
-const dummyClients: Record<string, Client> = {
-  '1': {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    salary: 180000,
-    budget: 1200000,
-    investmentPeriod: 10,
-    investmentGoal: 'Capital Appreciation',
-  },
-  '2': {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    salary: 195000,
-    budget: 1300000,
-    investmentPeriod: 15,
-    investmentGoal: 'Rental Yield',
-  },
-  '3': {
-    id: '3',
-    name: 'Michael Chen',
-    email: 'michael@example.com',
-    salary: 150000,
-    budget: 850000,
-    investmentPeriod: 7,
-    investmentGoal: 'Mixed Portfolio',
-  },
-};
 
 export default function PropertyDetailPage() {
   const params = useParams();
@@ -109,32 +83,23 @@ export default function PropertyDetailPage() {
 
     let loadedClient: Client | null = null;
 
-    // Try to load from localStorage first (for newly created clients)
+    // Load client from client-data.ts or localStorage
     try {
-      const stored = localStorage.getItem('clients');
-      if (stored) {
-        const parsed = JSON.parse(stored) as any[];
-        const found = parsed.find((c) => c.id === clientId);
-        if (found) {
-          loadedClient = {
-            id: found.id,
-            name: found.name,
-            email: found.email,
-            salary: found.salary,
-            budget: found.budget,
-            investmentPeriod: found.investmentPeriod,
-            investmentGoal: found.investmentGoal,
-          };
-        }
+      const foundClient = getClientById(clientId);
+      if (foundClient) {
+        loadedClient = {
+          id: foundClient.id,
+          name: foundClient.name,
+          email: foundClient.email,
+          salary: foundClient.salary,
+          budget: foundClient.budget,
+          investmentPeriod: foundClient.investmentPeriod,
+          investmentGoal: foundClient.investmentGoal,
+        };
       }
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Failed to load client from localStorage', e);
-    }
-
-    // Fallback to dummy clients
-    if (!loadedClient && dummyClients[clientId]) {
-      loadedClient = dummyClients[clientId];
+      console.warn('Failed to load client', e);
     }
 
     if (loadedClient) {
@@ -382,6 +347,15 @@ export default function PropertyDetailPage() {
     { name: 'Body Corp', value: analysis.annualBodyCorp },
   ];
 
+  // Dummy agency details (replace with real data if available)
+  const agencyDetails = {
+    name: (property as any).agencyName || 'Prime Realty Group',
+    contact: (property as any).agencyContact || '+61 2 1234 5678',
+    email: (property as any).agencyEmail || 'info@primerealty.com.au',
+    address: (property as any).agencyAddress || '123 Main St, Sydney NSW',
+    agent: (property as any).agentName || 'Sarah Lee',
+  };
+
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'];
   const investmentRating = getInvestmentRating(analysis.investmentScore);
 
@@ -562,7 +536,8 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Property Details Section */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+        <div className='grid grid-cols-1 lg:grid-cols-4 gap-4'>
+          {/* Property Details */}
           <Card className='bg-card border-border'>
             <CardHeader>
               <CardTitle className='text-foreground flex items-center gap-2'>
@@ -612,6 +587,7 @@ export default function PropertyDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Rental Income */}
           <Card className='bg-card border-border'>
             <CardHeader>
               <CardTitle className='text-foreground flex items-center gap-2'>
@@ -649,6 +625,7 @@ export default function PropertyDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Loan Details */}
           <Card className='bg-card border-border'>
             <CardHeader>
               <CardTitle className='text-foreground flex items-center gap-2'>
@@ -703,6 +680,50 @@ export default function PropertyDetailPage() {
                     ? 'Negative cash flow exceeds appreciation'
                     : `${analysis.breakEvenMonths.toFixed(0)} months`}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Agency Details */}
+          <Card className='bg-card border-border'>
+            <CardHeader>
+              <CardTitle className='text-foreground flex items-center gap-2'>
+                <Home className='w-5 h-5' />
+                Agency Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='grid grid-cols-1 gap-2'>
+                <div>
+                  <p className='text-xs text-muted-foreground'>Agency Name</p>
+                  <p className='font-semibold text-foreground'>
+                    {agencyDetails.name}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs text-muted-foreground'>Agent</p>
+                  <p className='font-semibold text-foreground'>
+                    {agencyDetails.agent}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs text-muted-foreground'>Contact</p>
+                  <p className='font-semibold text-foreground'>
+                    {agencyDetails.contact}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs text-muted-foreground'>Email</p>
+                  <p className='font-semibold text-foreground'>
+                    {agencyDetails.email}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs text-muted-foreground'>Address</p>
+                  <p className='font-semibold text-foreground'>
+                    {agencyDetails.address}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

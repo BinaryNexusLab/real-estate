@@ -5,17 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, ArrowLeft, Edit2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  budget: number;
-  salary: number;
-  investmentGoal: string;
-  preferredLocation: string;
-  investmentPeriod: number;
-}
+import { getAllClients, type Client } from '@/app/data/client-data';
 
 export default function ClientsListPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -27,58 +17,14 @@ export default function ClientsListPage() {
       window.location.href = '/';
       return;
     }
-    // Try to load clients from localStorage. If none exist, seed with default demo clients.
+    // Load clients from both client-data.ts and localStorage
     try {
-      const stored = localStorage.getItem('clients');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Client[];
-        setClients(parsed);
-      } else {
-        const seed: Client[] = [
-          {
-            id: '1',
-            name: 'John Smith',
-            email: 'john@example.com',
-            budget: 1200000,
-            salary: 180000,
-            investmentGoal: 'Capital Appreciation',
-            preferredLocation: 'Sydney',
-            investmentPeriod: 10,
-          },
-          {
-            id: '2',
-            name: 'Sarah Johnson',
-            email: 'sarah@example.com',
-            budget: 1300000,
-            salary: 195000,
-            investmentGoal: 'Rental Yield',
-            preferredLocation: 'Melbourne',
-            investmentPeriod: 15,
-          },
-          {
-            id: '3',
-            name: 'Michael Chen',
-            email: 'michael@example.com',
-            budget: 850000,
-            salary: 150000,
-            investmentGoal: 'Mixed Portfolio',
-            preferredLocation: 'Brisbane',
-            investmentPeriod: 7,
-          },
-        ];
-        setClients(seed);
-        try {
-          localStorage.setItem('clients', JSON.stringify(seed));
-        } catch (e) {
-          // ignore storage errors
-          // eslint-disable-next-line no-console
-          console.warn('Could not save seed clients to localStorage', e);
-        }
-      }
+      const allClients = getAllClients();
+      setClients(allClients);
     } catch (e) {
       // If parsing fails, fallback to an empty list
       // eslint-disable-next-line no-console
-      console.warn('Failed to read clients from localStorage', e);
+      console.warn('Failed to load clients', e);
       setClients([]);
     }
     setIsLoading(false);

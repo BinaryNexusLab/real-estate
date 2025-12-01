@@ -16,50 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  budget: number;
-  salary: number;
-  investmentGoal: string;
-  preferredLocation: string;
-  investmentPeriod: number;
-}
-
-const dummyClients: Record<string, Client> = {
-  '1': {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@example.com',
-    budget: 1200000,
-    salary: 180000,
-    investmentGoal: 'Capital Appreciation',
-    preferredLocation: 'Sydney',
-    investmentPeriod: 10,
-  },
-  '2': {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    budget: 1300000,
-    salary: 195000,
-    investmentGoal: 'Rental Yield',
-    preferredLocation: 'Melbourne',
-    investmentPeriod: 15,
-  },
-  '3': {
-    id: '3',
-    name: 'Michael Chen',
-    email: 'michael@example.com',
-    budget: 850000,
-    salary: 150000,
-    investmentGoal: 'Mixed Portfolio',
-    preferredLocation: 'Brisbane',
-    investmentPeriod: 7,
-  },
-};
+import { getClientById, type Client } from '@/app/data/client-data';
 
 export default function EditClientPage() {
   const params = useParams();
@@ -77,26 +34,14 @@ export default function EditClientPage() {
     }
 
     try {
-      const stored = localStorage.getItem('clients');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Client[];
-        const found = parsed.find((c) => c.id === clientId);
-        if (found) {
-          setFormData(found);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // fallback to dummy clients
-      if (dummyClients[clientId]) {
-        setFormData(dummyClients[clientId]);
+      const foundClient = getClientById(clientId);
+      if (foundClient) {
+        setFormData(foundClient);
         setIsLoading(false);
-        return;
+      } else {
+        // not found: redirect back to clients list
+        router.push('/dashboard/clients');
       }
-
-      // not found: redirect back to clients list
-      router.push('/dashboard/clients');
     } catch (e) {
       // parse error or other issue - go back to list
       // eslint-disable-next-line no-console

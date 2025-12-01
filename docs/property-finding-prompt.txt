@@ -1,0 +1,92 @@
+Detailed Prompt: Property-Finding Algorithm
+
+Goal:
+- Find and rank properties for a client by:
+  1) Filtering by location preferences
+  2) Filtering by budget range
+  3) Ranking by fastest break-even, with realistic expense/income modeling
+
+Inputs:
+- Client object:
+  - id, name, email
+  - budget (annual or total property budget in AUD), salary (annual)
+  - deposit (optional), investmentGoal, investmentPeriod (years)
+  - preferredLocation (supports multiple tokens: suburbs, regions, state codes)
+  - bedrooms requirement (optional)
+- Property dataset:
+  - price, address, suburb, state, postcode, propertyType, bedrooms, bathrooms, carSpaces
+  - estimatedRentalValueWeekly, maintenanceCostAnnual
+  - agency details (agency, agentName, agencyContact, agencyEmail, agencyAddress)
+  - optional costs: strataAnnual, councilRatesAnnual, insuranceAnnual, propertyManagementFeePct, vacancyRatePct
+
+Location Filtering:
+- Parse client.preferredLocation into tokens (comma/semicolon separated).
+- Match properties by any of:
+  - Suburb or address includes token
+  - State equals token (support NSW/VIC/QLD/WA/SA/TAS/NT/ACT and city aliases like Sydney→NSW)
+  - Handle loose patterns like “East Suburbs”, “Western Suburbs”, “Merrylands and close areas”.
+
+Budget Filtering:
+- Default budget window: [80% of client.budget, client.budget].
+- Allow UI override via minPrice and maxPrice.
+- Create secondary "Exceptional Opportunities" list: +0–20% above budget in same location.
+
+Financial Modeling per Property (for ranking):
+- Inputs:
+  - Price, weeklyRent, maintenance (annual), strata (annual), councilRates (annual), insurance (annual)
+  - propertyManagementFeePct (as % of rent), vacancyRatePct (% of weeks vacant)
+- Derived calculations:
+  - rentAnnual = weeklyRent * 52 * (1 - vacancyRatePct)
+  - managementCost = rentAnnual * propertyManagementFeePct
+  - totalAnnualExpenses = maintenance + strata + councilRates + insurance + managementCost
+  - NOI (Net Operating Income) = rentAnnual - totalAnnualExpenses
+- Loan modeling:
+  - If client.deposit is provided, loanAmount = price - deposit.
+  - If not, infer LVR by salary-to-price heuristic (e.g., 70–85%) and set deposit accordingly.
+  - InterestRate configurable; compute annualDebtService:
+    - P&I: amortization monthly payment * 12
+    - Interest-only: loanAmount * rate
+- Break-even calculation:
+  - annualCashFlow = NOI - annualDebtService
+  - If negative, accumulate annualCashFlow until cumulative ≥ 0; breakEvenYears = years to cross zero (cap at investmentPeriod if never achieved).
+- Secondary metrics:
+  - grossYield = rentAnnual / price
+  - ROI 5y/10y using appreciationRate tuned by investmentGoal (e.g., Yield 3.5%, Capital 5.0%, Mixed 4.0%).
+
+Ranking:
+- Standard results:
+  - Primary sort: breakEvenYears ascending
+  - Tie-breakers: grossYield descending, then ROI 5y descending
+- Exceptional Opportunities:
+  - Location-matched, price in (budget, budget * 1.2]
+  - Sort by investmentScore or ROI 5y descending; show top N after standard list
+
+Output & UI Placement:
+- Standard Properties Found: show first 5; "See More" loads +5 repeatedly until all.
+- Exceptional Opportunities: display after the standard list, clearly labeled and explained.
+- Each property card shows:
+  - Core: price, bedrooms, suburb/state, property type
+  - Financials: gross yield, break-even years, NOI, annual debt service, monthly cash flow
+  - Agency: agency name, agent name, contact, email, address
+
+Data Structure Adjustments (required):
+- Property:
+  - Existing: id, price, address, suburb, state, postcode?, propertyType, bedrooms, bathrooms, carSpaces?
+  - Income/Expenses: estimatedRentalValueWeekly, maintenanceCostAnnual
+  - ADD fields:
+    - strataAnnual?: number
+    - councilRatesAnnual?: number
+    - insuranceAnnual?: number
+    - propertyManagementFeePct?: number  // e.g., 0.07 for 7%
+    - vacancyRatePct?: number            // e.g., 0.04 for 4%
+    - agencyEmail?: string
+    - agencyAddress?: string
+- Client:
+  - Existing: id, name, email, budget, salary, investmentGoal, investmentPeriod, preferredLocation, bedrooms?, notes?
+  - ADD/Confirm:
+    - deposit?: number  // optional explicit deposit amount
+
+Notes:
+- If dataset lacks strata/council/insurance, define sensible defaults in code and override per property when available.
+- Keep deposit optional; infer LVR from salary-to-price when missing.
+- Ensure location parsing accepts multiple tokens and both city/state names.
