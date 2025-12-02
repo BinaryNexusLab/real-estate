@@ -24,7 +24,10 @@ import {
 } from '@/lib/report-generator';
 import { formatCurrency, formatPercent } from '@/lib/analysis-utils';
 import { realData } from '@/app/data/real_data';
-import { getClientById, type Client as ClientType } from '@/app/data/client-data';
+import {
+  getClientById,
+  type Client as ClientType,
+} from '@/app/data/client-data';
 
 interface Client {
   id: string;
@@ -66,12 +69,6 @@ export default function ReportPage() {
           email: foundClient.email,
           salary: foundClient.salary,
           budget: foundClient.budget,
-            investmentPeriod: found.investmentPeriod,
-            investmentGoal: found.investmentGoal,
-          };
-        }
-      }
-    } catch (e) {
           investmentPeriod: foundClient.investmentPeriod,
           investmentGoal: foundClient.investmentGoal,
         };
