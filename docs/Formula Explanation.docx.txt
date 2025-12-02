@@ -1,0 +1,119 @@
+﻿1. Property Information
+From your file:
+* Property price: $800,000
+* Loan (LVR): 80% → meaning you borrow 80% of $800,000
+* Borrowed amount:
+800,000×0.8=640,000
+* Interest rate: 6%
+________________
+
+
+✅ 2. Interest Cost Calculation
+From the file:
+($800,000 × 0.8 × 6.0%)
+That is the interest-only yearly repayment:
+640,000×6%=38,400
+✔ Annual interest payable: $38,400
+
+Self Occupied and Investment
+This is typical for Sydney investment loans (interest-only).
+________________
+
+
+✅ 3. Other Expenses (Outgoings)
+The file lists:
+Expense
+	Amount
+	Council rates
+	$1,500
+	Strata fees
+	$4,000
+	Water
+	$1,200
+	So total expenses:
+38,400+1,500+4,000+1,200=45,100
+✔ Total annual cost (self-occupied scenario): $45,100
+
+Self Occupied and Investment
+________________
+
+
+✅ 4. Rental Income + Tax Return
+The file shows:
+   * Rent per year: $39,100
+   * Tax return: $5,276
+✔ The tax return means you can deduct property losses + expenses and get money back from the ATO.
+The table shown in your file:
+Component
+	Amount
+	% of Total
+	Rent received
+	$39,100
+	86%
+	Tax return
+	$5,276
+	12%
+	Remaining out-of-pocket
+	$824
+	2%
+	Total expenses
+	$45,100
+	100%
+	Self Occupied and Investment
+________________
+
+
+🔍 What Is This Telling You?
+It’s showing:
+▶ Your annual cost of owning the investment property is:
+$45,100
+▶ You recover this much:
+   * Rent: $39,100
+   * Tax return: $5,276
+   * Total offset = $44,376
+▶ Your actual out-of-pocket yearly cost:
+45,100−(39,100+5,276)=82445,100−(39,100+5,276)=824
+✔ You only spend $824 per year to hold a $800,000 property.
+This is the main message of the slide.
+________________
+
+
+✅ 5. Break Even Calculation
+The slide shows:
+“Break Even — Rental return never drop”
+
+Self Occupied and Investment
+This means:
+Break-even = When rent + tax refunds fully cover the yearly cost.
+In your example, you are almost break-even already:
+| Annual cost | $45,100 |
+| Income (rent + tax) | $44,376 |
+| Gap | $824 only |
+So the investor is almost cashflow neutral.
+________________
+
+
+🍒 6. Property Price Appreciation (Wealth Growth)
+The diagram in the file shows:
+   * Property value approaching $1.24M
+   * Wealth grows over 10–20 years
+
+Self Occupied and Investment
+This means:
+Even if you pay $824/year, the property’s value grows every year, giving you equity.
+This is why the B&R Model says:
+"How you control wealth, one property at a time."
+________________
+
+
+📌 Summary in Simple Words
+Here is what your file is showing:
+✔ You buy a $800k property
+✔ You borrow 80% ($640k)
+✔ You pay 6% interest = $38.4k/year
+✔ Including strata, council, and water → your yearly cost = $45.1k
+✔ Rent gives you $39.1k
+✔ Tax refund gives you $5.2k
+✔ You only actually pay $824 per year
+✔ Property grows in value over years and eventually becomes profitable
+✔ You reach break-even immediately (almost)

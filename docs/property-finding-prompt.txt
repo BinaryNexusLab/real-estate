@@ -32,7 +32,7 @@ Budget Filtering:
 - Create secondary "Exceptional Opportunities" list: +0–20% above budget in same location.
 
 Financial Modeling per Property (for ranking):
-- Inputs:
+- Inputs:-
   - Price, weeklyRent, maintenance (annual), strata (annual), councilRates (annual), insurance (annual)
   - propertyManagementFeePct (as % of rent), vacancyRatePct (% of weeks vacant)
 - Derived calculations:

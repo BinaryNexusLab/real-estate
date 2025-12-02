@@ -271,72 +271,32 @@ export default function PropertyDetailPage() {
   ];
 
   const cashFlowData = [
-    {
-      month: 'Jan',
+    ...[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ].map((m) => ({
+      month: m,
       income: analysis.annualRentalIncome / 12,
       expenses:
         (analysis.annualMaintenanceCost +
           analysis.annualRates +
           analysis.annualInsurance +
           analysis.annualBodyCorp +
+          // monthlyMortgage is already monthly, but analysis.monthlyMortgage may be monthly payment
+          // ensure we use monthlyMortgage here
           analysis.monthlyMortgage * 12) /
         12,
-    },
-    {
-      month: 'Feb',
-      income: analysis.annualRentalIncome / 12,
-      expenses:
-        (analysis.annualMaintenanceCost +
-          analysis.annualRates +
-          analysis.annualInsurance +
-          analysis.annualBodyCorp +
-          analysis.monthlyMortgage * 12) /
-        12,
-    },
-    {
-      month: 'Mar',
-      income: analysis.annualRentalIncome / 12,
-      expenses:
-        (analysis.annualMaintenanceCost +
-          analysis.annualRates +
-          analysis.annualInsurance +
-          analysis.annualBodyCorp +
-          analysis.monthlyMortgage * 12) /
-        12,
-    },
-    {
-      month: 'Apr',
-      income: analysis.annualRentalIncome / 12,
-      expenses:
-        (analysis.annualMaintenanceCost +
-          analysis.annualRates +
-          analysis.annualInsurance +
-          analysis.annualBodyCorp +
-          analysis.monthlyMortgage * 12) /
-        12,
-    },
-    {
-      month: 'May',
-      income: analysis.annualRentalIncome / 12,
-      expenses:
-        (analysis.annualMaintenanceCost +
-          analysis.annualRates +
-          analysis.annualInsurance +
-          analysis.annualBodyCorp +
-          analysis.monthlyMortgage * 12) /
-        12,
-    },
-    {
-      month: 'Jun',
-      income: analysis.annualRentalIncome / 12,
-      expenses:
-        (analysis.annualMaintenanceCost +
-          analysis.annualRates +
-          analysis.annualInsurance +
-          analysis.annualBodyCorp +
-          analysis.monthlyMortgage * 12) /
-        12,
-    },
+    })),
   ];
 
   const expenseBreakdown = [
@@ -738,7 +698,8 @@ export default function PropertyDetailPage() {
                 Property Value Projection
               </CardTitle>
               <CardDescription>
-                Estimated value growth over 10 years at 4% p.a.
+                Estimated value growth over 10 years at{' '}
+                {formatPercent(analysis.appreciationRate * 100, 2)} p.a.
               </CardDescription>
             </CardHeader>
             <CardContent>

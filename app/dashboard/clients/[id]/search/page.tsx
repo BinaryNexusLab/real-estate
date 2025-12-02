@@ -50,6 +50,9 @@ export default function PropertySearchPage() {
     minBedrooms: 0,
     propertyType: 'All',
   });
+  const [priorityMode, setPriorityMode] = useState<'composite' | 'breakeven'>(
+    'composite'
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(5);
   // Smart Match removed
@@ -204,42 +207,54 @@ export default function PropertySearchPage() {
     setProperties(mapped);
     setFilteredProperties(mapped);
 
-    // Sort suggestions by investment score and only keep top performers
-    // Calculate investment score for each suggestion
-    const scoredSuggestions = mappedSuggestions
-      .map((prop) => {
-        const salaryToPrice = (loadedClient.salary || 0) / prop.price;
-        const lvr =
-          salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
-        let appreciationRate = 0.04;
-        if (loadedClient.investmentGoal === 'Capital Appreciation') {
-          appreciationRate = 0.05;
-        } else if (loadedClient.investmentGoal === 'Rental Yield') {
-          appreciationRate = 0.035;
-        }
+    // Sort suggestions by either composite investment score or break-even priority
+    const suggestionsWithMetrics = mappedSuggestions.map((prop) => {
+      const salaryToPrice = (loadedClient.salary || 0) / prop.price;
+      const lvr =
+        salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+      let appreciationRate = 0.04;
+      if (loadedClient.investmentGoal === 'Capital Appreciation') {
+        appreciationRate = 0.05;
+      } else if (loadedClient.investmentGoal === 'Rental Yield') {
+        appreciationRate = 0.035;
+      }
 
-        const analysis = calculateInvestmentAnalysis(
-          prop.price,
-          prop.estimatedRentalValueWeekly,
-          prop.maintenanceCostAnnual,
-          0.065,
-          loadedClient.investmentPeriod || 10,
-          appreciationRate,
-          lvr
-        );
+      // If priority is break-even, use interest-only snapshot to match the document
+      const analysis = calculateInvestmentAnalysis(
+        prop.price,
+        prop.estimatedRentalValueWeekly,
+        prop.maintenanceCostAnnual,
+        0.065,
+        loadedClient.investmentPeriod || 10,
+        appreciationRate,
+        lvr,
+        0, // taxRefund (default)
+        priorityMode === 'breakeven' // interestOnly when break-even priority selected
+      );
 
-        return {
-          property: prop,
-          score: analysis.investmentScore,
-          roi: analysis.roiYear5,
-        };
-      })
-      .filter((item) => item.score >= 65) // Only suggest properties with "Very Good" or better score
-      .sort((a, b) => b.score - a.score) // Sort by investment score
-      .slice(0, 4) // Keep top 4 suggestions
-      .map((item) => item.property);
+      return {
+        property: prop,
+        score: analysis.investmentScore,
+        roi: analysis.roiYear5,
+        breakeven: analysis.annualNetCashflowDoc ?? -Infinity,
+      };
+    });
 
-    setSuggestedProperties(scoredSuggestions);
+    let finalSuggestions: Property[] = [];
+    if (priorityMode === 'breakeven') {
+      finalSuggestions = suggestionsWithMetrics
+        .sort((a, b) => (b.breakeven as number) - (a.breakeven as number))
+        .slice(0, 4)
+        .map((s) => s.property);
+    } else {
+      finalSuggestions = suggestionsWithMetrics
+        .filter((item) => item.score >= 65)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4)
+        .map((item) => item.property);
+    }
+
+    setSuggestedProperties(finalSuggestions);
 
     console.log('CLIENT PROFILE:', {
       budget: loadedClient.budget,
@@ -252,7 +267,7 @@ export default function PropertySearchPage() {
     console.log('🏠 MAPPED PROPERTIES SAMPLE:', mapped.slice(0, 2));
     console.log(
       '💡 SMART SUGGESTIONS (above budget):',
-      scoredSuggestions.length
+      finalSuggestions.length
     );
 
     // Smart ranking removed
@@ -261,7 +276,7 @@ export default function PropertySearchPage() {
       maxPrice: loadedClient?.budget || 0,
     }));
     setIsLoading(false);
-  }, [clientId]);
+  }, [clientId, priorityMode]);
 
   useEffect(() => {
     let results = properties;
@@ -334,9 +349,16 @@ export default function PropertySearchPage() {
           case 'price-desc':
             return b.price - a.price;
           case 'breakeven-asc':
-            return analysisA.breakEvenYears - analysisB.breakEvenYears;
+            // Prioritize properties with higher document-style annual net (smaller out-of-pocket)
+            return (
+              (analysisB.annualNetCashflowDoc || -Infinity) -
+              (analysisA.annualNetCashflowDoc || -Infinity)
+            );
           case 'breakeven-desc':
-            return analysisB.breakEvenYears - analysisA.breakEvenYears;
+            return (
+              (analysisA.annualNetCashflowDoc || -Infinity) -
+              (analysisB.annualNetCashflowDoc || -Infinity)
+            );
           default:
             return 0;
         }
@@ -511,6 +533,27 @@ export default function PropertySearchPage() {
                   <option value='price-desc'>Price (High to Low)</option>
                   <option value='breakeven-asc'>Break-Even (Fastest)</option>
                   <option value='breakeven-desc'>Break-Even (Slowest)</option>
+                </select>
+              </div>
+
+              <div className='space-y-2'>
+                <Label
+                  htmlFor='priorityMode'
+                  className='text-foreground font-medium text-sm'
+                >
+                  Priority
+                </Label>
+                <select
+                  id='priorityMode'
+                  name='priorityMode'
+                  value={priorityMode}
+                  onChange={(e) =>
+                    setPriorityMode(e.target.value as 'composite' | 'breakeven')
+                  }
+                  className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
+                >
+                  <option value='composite'>Composite Score</option>
+                  <option value='breakeven'>Break-even Priority</option>
                 </select>
               </div>
             </div>
