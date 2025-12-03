@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { type Property } from '@/lib/property-types';
 import {
+  calculateInvestmentAnalysis,
   calculateRemainingLoan,
   type PropertyAnalysis,
 } from '@/lib/investment-calculator';
@@ -337,11 +338,11 @@ export default function PropertyDetailPage() {
             <h2 className='text-lg font-bold text-foreground'>{client.name}</h2>
           </div>
           <div className='flex gap-2 items-center'>
-            {analysis.investmentScore >= 65 && (
+            {/* {analysis.investmentScore >= 65 && (
               <span className='text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded'>
                 Exceptional Opportunity
               </span>
-            )}
+            )} */}
             {/* <Button
               variant='outline'
               className='flex items-center gap-2 border-border text-foreground hover:bg-muted bg-transparent'

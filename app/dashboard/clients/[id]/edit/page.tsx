@@ -58,7 +58,11 @@ export default function EditClientPage() {
     setFormData({
       ...formData,
       [name]:
-        name === 'budget' || name === 'salary' || name === 'investmentPeriod'
+        name === 'budget' ||
+        name === 'salary' ||
+        name === 'investmentPeriod' ||
+        name === 'minBudget' ||
+        name === 'maxBudget'
           ? Number.parseInt(value)
           : value,
     });
@@ -187,6 +191,41 @@ export default function EditClientPage() {
                     name='budget'
                     type='number'
                     value={formData.budget}
+                    onChange={handleChange}
+                    className='bg-input border-border text-foreground placeholder:text-muted-foreground'
+                  />
+                </div>
+              </div>
+
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div className='space-y-2'>
+                  <Label
+                    htmlFor='minBudget'
+                    className='text-foreground font-medium'
+                  >
+                    Min Budget (AUD)
+                  </Label>
+                  <Input
+                    id='minBudget'
+                    name='minBudget'
+                    type='number'
+                    value={formData.minBudget || ''}
+                    onChange={handleChange}
+                    className='bg-input border-border text-foreground placeholder:text-muted-foreground'
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label
+                    htmlFor='maxBudget'
+                    className='text-foreground font-medium'
+                  >
+                    Max Budget (AUD)
+                  </Label>
+                  <Input
+                    id='maxBudget'
+                    name='maxBudget'
+                    type='number'
+                    value={formData.maxBudget || ''}
                     onChange={handleChange}
                     className='bg-input border-border text-foreground placeholder:text-muted-foreground'
                   />

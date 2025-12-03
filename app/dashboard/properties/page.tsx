@@ -163,24 +163,6 @@ export default function PropertiesPage() {
     setFilteredProperties(results);
   }, [filters, properties, sortBy]);
 
-  // Derive Exceptional Opportunities (score 65+), sorted by score desc
-  const exceptionalProperties = [...properties]
-    .map((p) => ({
-      prop: p,
-      analysis: calculateInvestmentAnalysis(
-        p.price,
-        p.estimatedRentalValueWeekly,
-        p.maintenanceCostAnnual,
-        0.06,
-        25,
-        0.04,
-        0.8
-      ),
-    }))
-    .filter((x) => x.analysis.investmentScore >= 65)
-    .sort((a, b) => b.analysis.investmentScore - a.analysis.investmentScore)
-    .slice(0, 6);
-
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -246,112 +228,6 @@ export default function PropertiesPage() {
       </header>
 
       <main className='max-w-7xl mx-auto px-4 py-8'>
-        {/* Exceptional Opportunities */}
-        {exceptionalProperties.length > 0 && (
-          <Card className='bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-2 border-amber-300 dark:border-amber-700 mb-8'>
-            <CardHeader className='border-b border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900 dark:to-orange-900'>
-              <div className='flex items-start justify-between'>
-                <div>
-                  <CardTitle className='text-amber-900 dark:text-amber-100 flex items-center gap-2 text-lg'>
-                    Exceptional Opportunities
-                  </CardTitle>
-                  <CardDescription className='mt-2 text-amber-900 dark:text-amber-100 font-medium'>
-                    Top properties with outstanding investment potential (Score
-                    65+)
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className='pt-6'>
-              <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-                {exceptionalProperties.map(({ prop, analysis }) => (
-                  <Card
-                    key={prop.id}
-                    className='bg-white dark:bg-gray-900 border-2 border-amber-400 dark:border-amber-600 hover:shadow-xl transition-shadow cursor-pointer h-full relative'
-                  >
-                    {/* Badge */}
-                    <div className='absolute top-0 right-0 bg-gradient-to-br from-amber-500 to-orange-500 text-white px-3 py-1 rounded-bl-lg font-bold text-xs shadow-md'>
-                      EXCEPTIONAL
-                    </div>
-                    <CardHeader className='border-b border-border pt-8'>
-                      <div className='flex items-start justify-between'>
-                        <div className='flex-1'>
-                          <CardTitle className='text-foreground text-lg'>
-                            {prop.address}
-                          </CardTitle>
-                          <CardDescription className='flex items-center gap-1 mt-1'>
-                            <MapPin className='w-4 h-4' />
-                            {prop.suburb}, {prop.state} {prop.postcode}
-                          </CardDescription>
-                        </div>
-                        <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
-                          {prop.propertyType}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className='pt-4'>
-                      {/* Price */}
-                      <div className='mb-4 pb-4 border-b border-border'>
-                        <div className='flex items-baseline gap-2'>
-                          <DollarSign className='w-5 h-5 text-primary' />
-                          <span className='text-3xl font-bold text-foreground'>
-                            {(prop.price / 1000).toFixed(0)}k
-                          </span>
-                          <span className='text-sm text-muted-foreground'>
-                            (Median: ${(prop.medianPrice / 1000).toFixed(0)}k)
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Investment Metrics */}
-                      <div className='bg-muted/50 rounded-lg p-3 space-y-2 mb-4'>
-                        <div className='flex items-center justify-between'>
-                          <span className='text-sm text-muted-foreground'>
-                            Weekly Rent
-                          </span>
-                          <span className='font-semibold text-foreground'>
-                            ${prop.estimatedRentalValueWeekly}
-                          </span>
-                        </div>
-                        <div className='flex items-center justify-between'>
-                          <span className='text-sm text-muted-foreground'>
-                            Gross Yield
-                          </span>
-                          <span className='font-semibold text-foreground'>
-                            {analysis.grossYield.toFixed(2)}%
-                          </span>
-                        </div>
-                        <div className='flex items-center justify-between'>
-                          <span className='text-sm text-muted-foreground'>
-                            5-Year ROI
-                          </span>
-                          <span className='font-semibold text-accent'>
-                            {analysis.roiYear5.toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className='flex items-center justify-between border-t border-border pt-2'>
-                          <span className='text-sm font-semibold text-muted-foreground'>
-                            Investment Score
-                          </span>
-                          <span className='font-bold text-primary text-lg'>
-                            {analysis.investmentScore.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <Link href={`/dashboard/clients/1/properties/${prop.id}`}>
-                        <Button className='w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm shadow-lg'>
-                          <TrendingUp className='w-4 h-4 mr-2' />
-                          View This Opportunity
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
         {/* Filters Section */}
         <Card className='bg-card border-border mb-8'>
           <CardHeader className='border-b border-border'>
@@ -574,11 +450,6 @@ export default function PropertiesPage() {
                         {property.suburb}, {property.state} {property.postcode}
                       </CardDescription>
                     </div>
-                    {analysis.investmentScore >= 65 && (
-                      <span className='text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded'>
-                        EXCEPTIONAL
-                      </span>
-                    )}
                     <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
                       {property.propertyType}
                     </span>
@@ -621,56 +492,6 @@ export default function PropertiesPage() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Investment Metrics */}
-                  <div className='bg-muted/50 rounded-lg p-3 space-y-2 mb-4'>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-sm text-muted-foreground'>
-                        Weekly Rent
-                      </span>
-                      <span className='font-semibold text-foreground'>
-                        ${property.estimatedRentalValueWeekly}
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-sm text-muted-foreground'>
-                        Gross Yield
-                      </span>
-                      <span className='font-semibold text-foreground'>
-                        {analysis.grossYield.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-sm text-muted-foreground'>
-                        5-Year ROI
-                      </span>
-                      <span className='font-semibold text-accent'>
-                        {analysis.roiYear5.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between border-t border-border pt-2'>
-                      <span className='text-sm font-semibold text-muted-foreground'>
-                        Investment Score
-                      </span>
-                      <span className='font-bold text-primary text-lg'>
-                        {analysis.investmentScore.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Agent Info */}
-                  <div className='text-xs text-muted-foreground mb-4'>
-                    <p>
-                      Agent: {property.agentName} - {property.agency}
-                    </p>
-                  </div>
-
-                  <Link href={`/dashboard/clients/1/properties/${property.id}`}>
-                    <Button className='w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm'>
-                      <TrendingUp className='w-4 h-4 mr-2' />
-                      View Analysis
-                    </Button>
-                  </Link>
                 </CardContent>
               </Card>
             );

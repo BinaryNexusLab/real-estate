@@ -74,6 +74,9 @@ export default function PropertySearchPage() {
           email: foundClient.email,
           salary: foundClient.salary,
           budget: foundClient.budget,
+          minBudget: foundClient.minBudget,
+          maxBudget: foundClient.maxBudget,
+          deposit: foundClient.deposit,
           preferredLocation: foundClient.preferredLocation,
           investmentGoal: foundClient.investmentGoal,
           investmentPeriod: foundClient.investmentPeriod,
@@ -455,8 +458,9 @@ export default function PropertySearchPage() {
                     id='minPrice'
                     name='minPrice'
                     type='number'
-                    value={filters.minPrice}
+                    value={filters.minPrice || ''}
                     onChange={handleFilterChange}
+                    placeholder={(client.minBudget || 0).toString()}
                     className='bg-input border-border text-foreground placeholder:text-muted-foreground'
                   />
                   <span className='text-sm text-muted-foreground'>AUD</span>
@@ -520,9 +524,11 @@ export default function PropertySearchPage() {
                   className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
                 >
                   <option>All</option>
-                  <option>House</option>
                   <option>Apartment</option>
+                  <option>Duplex</option>
+                  <option>House</option>
                   <option>Townhouse</option>
+                  <option>Villa</option>
                 </select>
               </div>
 
