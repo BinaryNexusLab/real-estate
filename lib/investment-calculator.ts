@@ -21,6 +21,10 @@ export interface PropertyAnalysis {
   // Calculated metrics
   downPayment: number;
   monthlyMortgage: number;
+  monthlyPrincipal: number; // NEW: Principal portion of monthly payment
+  monthlyInterest: number; // NEW: Interest portion of monthly payment
+  annualPrincipalPayment: number; // NEW: Total principal paid per year
+  annualInterestPayment: number; // NEW: Total interest paid per year
   monthlyNetCashFlow: number;
   annualNetCashFlow: number;
   grossRent: number;
@@ -42,7 +46,7 @@ export function calculateInvestmentAnalysis(
   purchasePrice: number,
   weeklyRent: number,
   maintenanceCost: number,
-  loanRate = 0.07,
+  loanRate = 0.06,
   loanPeriod = 30,
   appreciationRate = 0.04,
   loanToValueRatio = 0.8,
@@ -98,6 +102,14 @@ export function calculateInvestmentAnalysis(
 
   // Cash flows
   const monthlyRentalIncome = annualRentalIncome / 12;
+
+  // Calculate principal and interest breakdown for first month
+  // (In reality, this changes each month as principal is paid down)
+  const monthlyInterestPayment = (loanAmount * loanRate) / 12;
+  const monthlyPrincipalPayment = monthlyMortgage - monthlyInterestPayment;
+  const annualInterestPayment = monthlyInterestPayment * 12;
+  const annualPrincipalPayment = monthlyPrincipalPayment * 12;
+
   const monthlyExpenses =
     (maintenanceCost +
       annualRates +
@@ -223,6 +235,10 @@ export function calculateInvestmentAnalysis(
     annualNetCashflowDoc,
     downPayment,
     monthlyMortgage,
+    monthlyPrincipal: monthlyPrincipalPayment,
+    monthlyInterest: monthlyInterestPayment,
+    annualPrincipalPayment,
+    annualInterestPayment,
     monthlyNetCashFlow,
     annualNetCashFlow,
     grossRent,

@@ -61,6 +61,7 @@ interface Client {
   email?: string;
   salary: number;
   budget?: number;
+  deposit?: number;
   investmentPeriod?: number;
   investmentGoal?: string;
 }
@@ -93,6 +94,7 @@ export default function PropertyDetailPage() {
           email: foundClient.email,
           salary: foundClient.salary,
           budget: foundClient.budget,
+          deposit: foundClient.deposit,
           investmentPeriod: foundClient.investmentPeriod,
           investmentGoal: foundClient.investmentGoal,
         };
@@ -175,18 +177,13 @@ export default function PropertyDetailPage() {
         ? Math.max(loadedClient.investmentPeriod, 5) // Minimum 5 years
         : 25; // Default
 
-      // Calculate appropriate loan-to-value ratio based on client's financial capacity
-      // Higher salary = can handle higher LVR
-      const salaryToPrice = loadedClient.salary / mappedProperty.price;
-      let loanToValueRatio = 0.8; // Default 80%
-
-      if (salaryToPrice < 0.1) {
-        // Salary is less than 10% of property price - need larger deposit
-        loanToValueRatio = 0.7;
-      } else if (salaryToPrice > 0.2) {
-        // Strong financial position - could go higher LVR
-        loanToValueRatio = 0.85;
-      }
+      // Calculate LVR from client's actual deposit
+      // If deposit is provided, use it; otherwise default to 20% of property price
+      const clientDeposit = loadedClient.deposit || mappedProperty.price * 0.2;
+      const loanToValueRatio = Math.min(
+        0.95,
+        (mappedProperty.price - clientDeposit) / mappedProperty.price
+      );
 
       // Use realistic current interest rates (2025)
       const interestRate = 0.065; // 6.5% - typical 2025 home loan rate
@@ -201,10 +198,11 @@ export default function PropertyDetailPage() {
 
       console.log('📊 CLIENT-SPECIFIC ANALYSIS PARAMETERS:', {
         clientName: loadedClient.name,
+        clientDeposit: clientDeposit,
         salary: loadedClient.salary,
         investmentPeriod: loanPeriod,
         investmentGoal: loadedClient.investmentGoal,
-        loanToValueRatio: `${(loanToValueRatio * 100).toFixed(0)}%`,
+        loanToValueRatio: `${(loanToValueRatio * 100).toFixed(2)}%`,
         interestRate: `${(interestRate * 100).toFixed(2)}%`,
         appreciationRate: `${(appreciationRate * 100).toFixed(1)}%`,
         propertyPrice: mappedProperty.price,
@@ -340,13 +338,13 @@ export default function PropertyDetailPage() {
             <h2 className='text-lg font-bold text-foreground'>{client.name}</h2>
           </div>
           <div className='flex gap-2'>
-            <Button
+            {/* <Button
               variant='outline'
               className='flex items-center gap-2 border-border text-foreground hover:bg-muted bg-transparent'
             >
               <Share2 className='w-4 h-4' />
               Share
-            </Button>
+            </Button> */}
             <Link
               href={`/dashboard/clients/${clientId}/properties/${propertyId}/report`}
             >

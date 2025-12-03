@@ -44,7 +44,7 @@ export default function PropertySearchPage() {
   const [suggestedProperties, setSuggestedProperties] = useState<Property[]>(
     []
   );
-  const [sortBy, setSortBy] = useState<string>('roi-desc');
+  const [sortBy, setSortBy] = useState<string>('breakeven-asc');
   const [filters, setFilters] = useState({
     maxPrice: 0,
     minBedrooms: 0,
@@ -209,9 +209,9 @@ export default function PropertySearchPage() {
 
     // Sort suggestions by either composite investment score or break-even priority
     const suggestionsWithMetrics = mappedSuggestions.map((prop) => {
-      const salaryToPrice = (loadedClient.salary || 0) / prop.price;
-      const lvr =
-        salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+      // Use client's deposit to calculate LVR, fallback to 80% if no deposit provided
+      const deposit = loadedClient.deposit || prop.price * 0.2;
+      const lvr = Math.min(0.95, (prop.price - deposit) / prop.price);
       let appreciationRate = 0.04;
       if (loadedClient.investmentGoal === 'Capital Appreciation') {
         appreciationRate = 0.05;
@@ -305,15 +305,13 @@ export default function PropertySearchPage() {
       }
 
       results = [...results].sort((a, b) => {
-        // Calculate client-specific LVR for property A
-        const salaryToPriceA = (client.salary || 0) / a.price;
-        const lvrA =
-          salaryToPriceA >= 0.2 ? 0.85 : salaryToPriceA >= 0.15 ? 0.8 : 0.7;
+        // Use client's deposit to calculate LVR for property A
+        const depositA = client.deposit || a.price * 0.2;
+        const lvrA = Math.min(0.95, (a.price - depositA) / a.price);
 
-        // Calculate client-specific LVR for property B
-        const salaryToPriceB = (client.salary || 0) / b.price;
-        const lvrB =
-          salaryToPriceB >= 0.2 ? 0.85 : salaryToPriceB >= 0.15 ? 0.8 : 0.7;
+        // Use client's deposit to calculate LVR for property B
+        const depositB = client.deposit || b.price * 0.2;
+        const lvrB = Math.min(0.95, (b.price - depositB) / b.price);
 
         // Calculate metrics for both properties with client-specific parameters
         const analysisA = calculateInvestmentAnalysis(
@@ -336,25 +334,18 @@ export default function PropertySearchPage() {
         );
 
         switch (sortBy) {
-          case 'roi-desc':
-            return analysisB.roiYear5 - analysisA.roiYear5;
-          case 'roi-asc':
-            return analysisA.roiYear5 - analysisB.roiYear5;
-          case 'yield-desc':
-            return analysisB.grossYield - analysisA.grossYield;
-          case 'yield-asc':
-            return analysisA.grossYield - analysisB.grossYield;
           case 'price-asc':
             return a.price - b.price;
           case 'price-desc':
             return b.price - a.price;
           case 'breakeven-asc':
-            // Prioritize properties with higher document-style annual net (smaller out-of-pocket)
+            // Fastest break-even: higher annualNetCashflowDoc is better (less out-of-pocket)
             return (
               (analysisB.annualNetCashflowDoc || -Infinity) -
               (analysisA.annualNetCashflowDoc || -Infinity)
             );
           case 'breakeven-desc':
+            // Slowest break-even: lower annualNetCashflowDoc
             return (
               (analysisA.annualNetCashflowDoc || -Infinity) -
               (analysisB.annualNetCashflowDoc || -Infinity)
@@ -525,14 +516,14 @@ export default function PropertySearchPage() {
                   onChange={(e) => setSortBy(e.target.value)}
                   className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
                 >
-                  <option value='roi-desc'>ROI (High to Low)</option>
-                  <option value='roi-asc'>ROI (Low to High)</option>
-                  <option value='yield-desc'>Yield (High to Low)</option>
-                  <option value='yield-asc'>Yield (Low to High)</option>
+                  <option value='breakeven-asc'>
+                    Break-Even (Fastest First)
+                  </option>
+                  <option value='breakeven-desc'>
+                    Break-Even (Slowest First)
+                  </option>
                   <option value='price-asc'>Price (Low to High)</option>
                   <option value='price-desc'>Price (High to Low)</option>
-                  <option value='breakeven-asc'>Break-Even (Fastest)</option>
-                  <option value='breakeven-desc'>Break-Even (Slowest)</option>
                 </select>
               </div>
 
@@ -589,13 +580,7 @@ export default function PropertySearchPage() {
             </h2>
             <p className='text-sm text-muted-foreground'>
               Sorted by{' '}
-              {sortBy.includes('roi')
-                ? 'ROI'
-                : sortBy.includes('yield')
-                ? 'Yield'
-                : sortBy.includes('price')
-                ? 'Price'
-                : 'Break-Even Period'}
+              {sortBy.includes('price') ? 'Price' : 'Break-Even Period'}
               {' • '}
               {suggestedProperties.length > 0
                 ? `Within ${client.name}'s $${(client.budget / 1000).toFixed(
@@ -611,9 +596,12 @@ export default function PropertySearchPage() {
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
           {filteredProperties.slice(0, visibleCount).map((property) => {
             // Calculate client-specific parameters for this property
-            const salaryToPrice = (client.salary || 0) / property.price;
-            const lvr =
-              salaryToPrice >= 0.2 ? 0.85 : salaryToPrice >= 0.15 ? 0.8 : 0.7;
+            // Use client's deposit to calculate LVR, fallback to 20% deposit if not provided
+            const deposit = client.deposit || property.price * 0.2;
+            const lvr = Math.min(
+              0.95,
+              (property.price - deposit) / property.price
+            );
 
             let appreciationRate = 0.04;
             if (client.investmentGoal === 'Capital Appreciation') {
@@ -837,13 +825,12 @@ export default function PropertySearchPage() {
               <CardContent className='pt-6'>
                 <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
                   {suggestedProperties.map((property) => {
-                    const salaryToPrice = (client.salary || 0) / property.price;
-                    const lvr =
-                      salaryToPrice >= 0.2
-                        ? 0.85
-                        : salaryToPrice >= 0.15
-                        ? 0.8
-                        : 0.7;
+                    // Use client's deposit to calculate LVR, fallback to 20% deposit if not provided
+                    const deposit = client.deposit || property.price * 0.2;
+                    const lvr = Math.min(
+                      0.95,
+                      (property.price - deposit) / property.price
+                    );
 
                     let appreciationRate = 0.04;
                     if (client.investmentGoal === 'Capital Appreciation') {
@@ -1030,7 +1017,7 @@ export default function PropertySearchPage() {
 
         {/* Smart Match empty state removed */}
 
-        {filteredProperties.length === 0 && (
+        {/* {filteredProperties.length === 0 && (
           <Card className='bg-card border-border'>
             <CardContent className='pt-10 pb-10'>
               <div className='flex flex-col items-center text-center gap-4'>
@@ -1097,7 +1084,7 @@ export default function PropertySearchPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+        )} */}
       </main>
     </div>
   );
