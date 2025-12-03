@@ -103,12 +103,39 @@ export function calculateInvestmentAnalysis(
   // Cash flows
   const monthlyRentalIncome = annualRentalIncome / 12;
 
-  // Calculate principal and interest breakdown for first month
-  // (In reality, this changes each month as principal is paid down)
-  const monthlyInterestPayment = (loanAmount * loanRate) / 12;
-  const monthlyPrincipalPayment = monthlyMortgage - monthlyInterestPayment;
-  const annualInterestPayment = monthlyInterestPayment * 12;
-  const annualPrincipalPayment = monthlyPrincipalPayment * 12;
+  // Break-even analysis using new formula
+  // Annual cost (interest + other expenses)
+  const annualInterestCost = loanAmount * loanRate;
+  const otherExpenses =
+    maintenanceCost +
+    annualRates +
+    annualInsurance +
+    annualBodyCorp +
+    annualWater +
+    otherOutgoings;
+  const totalAnnualExpenses = annualInterestCost + otherExpenses;
+
+  // Annual principal payment (loan / loan period)
+  const annualPrincipalPayment = loanAmount / loanPeriod;
+
+  // Total yearly payment (expenses + principal)
+  const totalYearlyPayment = totalAnnualExpenses + annualPrincipalPayment;
+
+  // Total payable over loan period
+  const totalPayableOverPeriod = totalYearlyPayment * loanPeriod;
+
+  // Annual income (rent + tax return)
+  const annualIncome = annualRentalIncome + taxRefund;
+
+  // Break even in years = total payable / annual income
+  const breakEvenYears =
+    annualIncome > 0 ? totalPayableOverPeriod / annualIncome : 999;
+  const breakEvenMonths = breakEvenYears * 12;
+
+  // Calculate principal and interest breakdown
+  const monthlyInterestPayment = annualInterestCost / 12;
+  const monthlyPrincipalPayment = annualPrincipalPayment / 12;
+  const annualInterestPayment = annualInterestCost;
 
   const monthlyExpenses =
     (maintenanceCost +
@@ -128,25 +155,6 @@ export function calculateInvestmentAnalysis(
   // Prevent Infinity: if downPayment is 0 or too small, use a fallback calculation
   const netYield =
     downPayment > 0 ? (annualNetCashFlow / downPayment) * 100 : 0;
-
-  // Break-even analysis
-  const totalAnnualExpenses =
-    maintenanceCost +
-    annualRates +
-    annualInsurance +
-    annualBodyCorp +
-    annualWater +
-    otherOutgoings +
-    monthlyMortgage * 12;
-  const breakEvenMonths =
-    annualRentalIncome > totalAnnualExpenses
-      ? 0
-      : annualRentalIncome > 0
-      ? Math.ceil(
-          (totalAnnualExpenses - annualRentalIncome) / (annualRentalIncome / 12)
-        )
-      : 999;
-  const breakEvenYears = breakEvenMonths / 12;
 
   // Appreciation projections
   const projectedValueYear5 = purchasePrice * Math.pow(1 + appreciationRate, 5);
@@ -193,27 +201,14 @@ export function calculateInvestmentAnalysis(
   const totalOffsets = annualRentalIncome + taxRefund;
   const annualNetCashflowDoc = totalOffsets - totalAnnualCost; // positive means cashflow positive
 
-  // Investment score (0-100)
-  let investmentScore = 50;
-  if (grossYield > 5) investmentScore += 15;
-  else if (grossYield > 4) investmentScore += 10;
-  else if (grossYield > 3) investmentScore += 5;
-
-  if (roiYear5 > 25) investmentScore += 15;
-  else if (roiYear5 > 15) investmentScore += 10;
-  else if (roiYear5 > 10) investmentScore += 5;
-
-  if (debtServiceRatio < 0.5) investmentScore += 10;
-  else if (debtServiceRatio < 0.6) investmentScore += 5;
-
-  if (monthlyNetCashFlow > 0) investmentScore += 10;
-  else if (monthlyNetCashFlow > -200) investmentScore += 5;
-
-  // Reward near break-even (small annual out-of-pocket) as in document example
-  if (annualNetCashflowDoc >= 0) investmentScore += 8;
-  else if (annualNetCashflowDoc > -2000) investmentScore += 4;
-
-  investmentScore = Math.min(investmentScore, 100);
+  // Composite Score calculation
+  // Property value for sorting = (0.6 * ROI) + (0.4 * Break Even Score)
+  // For Break Even Score: lower years is better, so we invert it
+  // Normalize: if breakEven is 10 years, score = 100; if 50 years, score = 20
+  const breakEvenScore =
+    breakEvenYears > 0 ? Math.max(0, 100 - breakEvenYears * 2) : 0;
+  const roiScore = Math.min(100, Math.max(0, roiYear5)); // Cap ROI at 100 for scoring
+  const investmentScore = 0.6 * roiScore + 0.4 * breakEvenScore;
 
   return {
     propertyId: '',

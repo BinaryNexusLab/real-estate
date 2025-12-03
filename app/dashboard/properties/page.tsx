@@ -28,7 +28,7 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<string>('price-asc');
+  const [sortBy, setSortBy] = useState<string>('composite-score-desc');
   const [filters, setFilters] = useState({
     state: 'All',
     propertyType: 'All',
@@ -131,7 +131,7 @@ export default function PropertiesPage() {
         a.price,
         a.estimatedRentalValueWeekly,
         a.maintenanceCostAnnual,
-        0.065,
+        0.06,
         25,
         0.04,
         0.8
@@ -140,36 +140,46 @@ export default function PropertiesPage() {
         b.price,
         b.estimatedRentalValueWeekly,
         b.maintenanceCostAnnual,
-        0.065,
+        0.06,
         25,
         0.04,
         0.8
       );
 
       switch (sortBy) {
-        case 'price-asc':
-          return a.price - b.price;
-        case 'price-desc':
-          return b.price - a.price;
-        case 'yield-desc':
-          return analysisB.grossYield - analysisA.grossYield;
-        case 'yield-asc':
-          return analysisA.grossYield - analysisB.grossYield;
-        case 'roi-desc':
-          return analysisB.roiYear5 - analysisA.roiYear5;
-        case 'roi-asc':
-          return analysisA.roiYear5 - analysisB.roiYear5;
-        case 'score-desc':
+        case 'composite-score-desc':
           return analysisB.investmentScore - analysisA.investmentScore;
-        case 'suburb':
-          return a.suburb.localeCompare(b.suburb);
+        case 'composite-score-asc':
+          return analysisA.investmentScore - analysisB.investmentScore;
+        case 'break-even-asc':
+          return analysisA.breakEvenYears - analysisB.breakEvenYears;
+        case 'break-even-desc':
+          return analysisB.breakEvenYears - analysisA.breakEvenYears;
         default:
-          return 0;
+          return analysisB.investmentScore - analysisA.investmentScore;
       }
     });
 
     setFilteredProperties(results);
   }, [filters, properties, sortBy]);
+
+  // Derive Exceptional Opportunities (score 65+), sorted by score desc
+  const exceptionalProperties = [...properties]
+    .map((p) => ({
+      prop: p,
+      analysis: calculateInvestmentAnalysis(
+        p.price,
+        p.estimatedRentalValueWeekly,
+        p.maintenanceCostAnnual,
+        0.06,
+        25,
+        0.04,
+        0.8
+      ),
+    }))
+    .filter((x) => x.analysis.investmentScore >= 65)
+    .sort((a, b) => b.analysis.investmentScore - a.analysis.investmentScore)
+    .slice(0, 6);
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -193,7 +203,7 @@ export default function PropertiesPage() {
       minBedrooms: 0,
       searchQuery: '',
     });
-    setSortBy('price-asc');
+    setSortBy('composite-score-desc');
   };
 
   // Get unique states and property types for filters
@@ -236,6 +246,112 @@ export default function PropertiesPage() {
       </header>
 
       <main className='max-w-7xl mx-auto px-4 py-8'>
+        {/* Exceptional Opportunities */}
+        {exceptionalProperties.length > 0 && (
+          <Card className='bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-2 border-amber-300 dark:border-amber-700 mb-8'>
+            <CardHeader className='border-b border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900 dark:to-orange-900'>
+              <div className='flex items-start justify-between'>
+                <div>
+                  <CardTitle className='text-amber-900 dark:text-amber-100 flex items-center gap-2 text-lg'>
+                    Exceptional Opportunities
+                  </CardTitle>
+                  <CardDescription className='mt-2 text-amber-900 dark:text-amber-100 font-medium'>
+                    Top properties with outstanding investment potential (Score
+                    65+)
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className='pt-6'>
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                {exceptionalProperties.map(({ prop, analysis }) => (
+                  <Card
+                    key={prop.id}
+                    className='bg-white dark:bg-gray-900 border-2 border-amber-400 dark:border-amber-600 hover:shadow-xl transition-shadow cursor-pointer h-full relative'
+                  >
+                    {/* Badge */}
+                    <div className='absolute top-0 right-0 bg-gradient-to-br from-amber-500 to-orange-500 text-white px-3 py-1 rounded-bl-lg font-bold text-xs shadow-md'>
+                      EXCEPTIONAL
+                    </div>
+                    <CardHeader className='border-b border-border pt-8'>
+                      <div className='flex items-start justify-between'>
+                        <div className='flex-1'>
+                          <CardTitle className='text-foreground text-lg'>
+                            {prop.address}
+                          </CardTitle>
+                          <CardDescription className='flex items-center gap-1 mt-1'>
+                            <MapPin className='w-4 h-4' />
+                            {prop.suburb}, {prop.state} {prop.postcode}
+                          </CardDescription>
+                        </div>
+                        <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
+                          {prop.propertyType}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className='pt-4'>
+                      {/* Price */}
+                      <div className='mb-4 pb-4 border-b border-border'>
+                        <div className='flex items-baseline gap-2'>
+                          <DollarSign className='w-5 h-5 text-primary' />
+                          <span className='text-3xl font-bold text-foreground'>
+                            {(prop.price / 1000).toFixed(0)}k
+                          </span>
+                          <span className='text-sm text-muted-foreground'>
+                            (Median: ${(prop.medianPrice / 1000).toFixed(0)}k)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Investment Metrics */}
+                      <div className='bg-muted/50 rounded-lg p-3 space-y-2 mb-4'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm text-muted-foreground'>
+                            Weekly Rent
+                          </span>
+                          <span className='font-semibold text-foreground'>
+                            ${prop.estimatedRentalValueWeekly}
+                          </span>
+                        </div>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm text-muted-foreground'>
+                            Gross Yield
+                          </span>
+                          <span className='font-semibold text-foreground'>
+                            {analysis.grossYield.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm text-muted-foreground'>
+                            5-Year ROI
+                          </span>
+                          <span className='font-semibold text-accent'>
+                            {analysis.roiYear5.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className='flex items-center justify-between border-t border-border pt-2'>
+                          <span className='text-sm font-semibold text-muted-foreground'>
+                            Investment Score
+                          </span>
+                          <span className='font-bold text-primary text-lg'>
+                            {analysis.investmentScore.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link href={`/dashboard/clients/1/properties/${prop.id}`}>
+                        <Button className='w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-sm shadow-lg'>
+                          <TrendingUp className='w-4 h-4 mr-2' />
+                          View This Opportunity
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Filters Section */}
         <Card className='bg-card border-border mb-8'>
           <CardHeader className='border-b border-border'>
@@ -374,15 +490,15 @@ export default function PropertiesPage() {
               </div>
             </div>
 
-            {/* Sort and Reset */}
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            {/* Priority Filter and Sort */}
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
               <div className='space-y-2'>
                 <Label
                   htmlFor='sortBy'
                   className='text-foreground font-medium text-sm flex items-center gap-2'
                 >
-                  <SortAsc className='w-4 h-4' />
-                  Sort By
+                  <Filter className='w-4 h-4' />
+                  Priority Filter
                 </Label>
                 <select
                   id='sortBy'
@@ -390,20 +506,22 @@ export default function PropertiesPage() {
                   onChange={(e) => setSortBy(e.target.value)}
                   className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
                 >
-                  <option value='price-asc'>Price (Low to High)</option>
-                  <option value='price-desc'>Price (High to Low)</option>
-                  <option value='yield-desc'>Yield (High to Low)</option>
-                  <option value='yield-asc'>Yield (Low to High)</option>
-                  <option value='roi-desc'>ROI (High to Low)</option>
-                  <option value='roi-asc'>ROI (Low to High)</option>
-                  <option value='score-desc'>
-                    Investment Score (High to Low)
+                  <option value='composite-score-desc'>
+                    Composite Score (High to Low)
                   </option>
-                  <option value='suburb'>Suburb (A-Z)</option>
+                  <option value='composite-score-asc'>
+                    Composite Score (Low to High)
+                  </option>
+                  <option value='break-even-asc'>
+                    Break Even (Fast to Slow)
+                  </option>
+                  <option value='break-even-desc'>
+                    Break Even (Slow to Fast)
+                  </option>
                 </select>
               </div>
 
-              <div className='flex items-end'>
+              <div className='flex items-end col-span-2'>
                 <Button
                   onClick={resetFilters}
                   variant='outline'
@@ -434,7 +552,7 @@ export default function PropertiesPage() {
               property.price,
               property.estimatedRentalValueWeekly,
               property.maintenanceCostAnnual,
-              0.065,
+              0.06,
               25,
               0.04,
               0.8
@@ -456,6 +574,11 @@ export default function PropertiesPage() {
                         {property.suburb}, {property.state} {property.postcode}
                       </CardDescription>
                     </div>
+                    {analysis.investmentScore >= 65 && (
+                      <span className='text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded'>
+                        EXCEPTIONAL
+                      </span>
+                    )}
                     <span className='text-sm font-semibold text-secondary-foreground bg-secondary px-3 py-1 rounded-full'>
                       {property.propertyType}
                     </span>
@@ -530,7 +653,7 @@ export default function PropertiesPage() {
                         Investment Score
                       </span>
                       <span className='font-bold text-primary text-lg'>
-                        {analysis.investmentScore}
+                        {analysis.investmentScore.toFixed(2)}
                       </span>
                     </div>
                   </div>

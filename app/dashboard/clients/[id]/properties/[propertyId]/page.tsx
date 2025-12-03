@@ -24,7 +24,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { type Property } from '@/lib/property-types';
 import {
-  calculateInvestmentAnalysis,
   calculateRemainingLoan,
   type PropertyAnalysis,
 } from '@/lib/investment-calculator';
@@ -185,8 +184,8 @@ export default function PropertyDetailPage() {
         (mappedProperty.price - clientDeposit) / mappedProperty.price
       );
 
-      // Use realistic current interest rates (2025)
-      const interestRate = 0.065; // 6.5% - typical 2025 home loan rate
+      // Use 6% interest rate as per calculation requirements
+      const interestRate = 0.06; // 6%
 
       // Appreciation rate varies by investment goal
       let appreciationRate = 0.04; // Default 4% p.a.
@@ -337,7 +336,12 @@ export default function PropertyDetailPage() {
             </p>
             <h2 className='text-lg font-bold text-foreground'>{client.name}</h2>
           </div>
-          <div className='flex gap-2'>
+          <div className='flex gap-2 items-center'>
+            {analysis.investmentScore >= 65 && (
+              <span className='text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded'>
+                Exceptional Opportunity
+              </span>
+            )}
             {/* <Button
               variant='outline'
               className='flex items-center gap-2 border-border text-foreground hover:bg-muted bg-transparent'
@@ -483,7 +487,7 @@ export default function PropertyDetailPage() {
                   Investment Score
                 </p>
                 <p className={`text-3xl font-bold ${investmentRating.color}`}>
-                  {analysis.investmentScore}
+                  {analysis.investmentScore.toFixed(2)}
                 </p>
                 <p className='text-xs text-muted-foreground mt-1'>
                   {investmentRating.label}

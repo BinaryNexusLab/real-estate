@@ -3,6 +3,8 @@ export interface Client {
   name: string;
   email: string;
   budget: number;
+  minBudget?: number;
+  maxBudget?: number;
   salary: number;
   investmentGoal: string;
   preferredLocation: string;
@@ -20,6 +22,8 @@ export const clientData: Client[] = [
     email: 'minh@example.com',
     status: 'Investment',
     budget: 700000,
+    minBudget: 0,
+    maxBudget: 700000,
     deposit: 100000,
     salary: 170000, // PAYG 100K + Wife 70K
     investmentGoal: 'Rental Yield',
@@ -34,6 +38,8 @@ export const clientData: Client[] = [
     email: 'john.hansen@example.com',
     status: 'First Home Buyer, Self-Occupied',
     budget: 675000, // Mid-range of 650k-700k
+    minBudget: 650000,
+    maxBudget: 700000,
     deposit: 125000, // Mid-range of 100k-150k
     salary: 100000, // PAYG
     investmentGoal: 'Capital Appreciation',
@@ -48,6 +54,8 @@ export const clientData: Client[] = [
     email: 'vm@example.com',
     status: 'Investment',
     budget: 675000, // Mid-range of 650k-700k
+    minBudget: 650000,
+    maxBudget: 700000,
     deposit: 100000,
     salary: 110000, // Mid-range of 100K-120k, self-employment
     investmentGoal: 'Rental Yield',
@@ -62,6 +70,8 @@ export const clientData: Client[] = [
     email: 'tommy@example.com',
     status: 'Investment',
     budget: 675000, // Mid-range of 650k-700k
+    minBudget: 650000,
+    maxBudget: 700000,
     deposit: 175000, // Mid-range of 150k-200k
     salary: 225000, // Mid-range of 200K-250k, self-employment
     investmentGoal: 'Mixed Portfolio',
@@ -77,6 +87,8 @@ export const clientData: Client[] = [
     email: 'gansuku@example.com',
     status: 'Self-Occupied',
     budget: 3000000, // Mid-range of 1M-5M
+    minBudget: 1000000,
+    maxBudget: 5000000,
     deposit: 150000, // Mid-range of 100k-200k
     salary: 300000, // Self-employment, 300K+
     investmentGoal: 'Capital Appreciation',
@@ -92,6 +104,8 @@ export const clientData: Client[] = [
     email: 'pradip@example.com',
     status: 'Investment',
     budget: 725000, // Mid-range of 650k-800k
+    minBudget: 650000,
+    maxBudget: 800000,
     deposit: 125000, // Mid-range of 100k-150k
     salary: 200000, // PAYG
     investmentGoal: 'Mixed Portfolio',
@@ -107,6 +121,8 @@ export const clientData: Client[] = [
     email: 'jiayi@example.com',
     status: 'First Home Buyer, Self-Occupied',
     budget: 900000, // Mid-range of 800k-1M
+    minBudget: 800000,
+    maxBudget: 1000000,
     deposit: 175000, // Mid-range of 150k-200k, can get more
     salary: 200000, // Self-employment, 200K+
     investmentGoal: 'Capital Appreciation',
@@ -122,6 +138,8 @@ export const clientData: Client[] = [
     email: 'rosha@example.com',
     status: 'First Home Buyer, Self-Occupied',
     budget: 650000, // Mid-range of 600k-700k
+    minBudget: 600000,
+    maxBudget: 700000,
     deposit: 50000,
     salary: 70000, // PAYG
     investmentGoal: 'Capital Appreciation',
@@ -136,6 +154,8 @@ export const clientData: Client[] = [
     email: 'lina@example.com',
     status: 'First Home Buyer, Self-Occupied',
     budget: 850000, // Mid-range of 800k-900k
+    minBudget: 800000,
+    maxBudget: 900000,
     deposit: 2250000, // Mid-range of 2M-2.5M
     salary: 0, // No income
     investmentGoal: 'Capital Appreciation',
@@ -150,6 +170,8 @@ export const clientData: Client[] = [
     email: 'ajay@example.com',
     status: 'Investment',
     budget: 1050000, // Mid-range of 800k-1.3M
+    minBudget: 800000,
+    maxBudget: 1300000,
     deposit: 300000,
     salary: 0, // No income
     investmentGoal: 'Rental Yield',

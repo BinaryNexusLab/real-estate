@@ -44,15 +44,13 @@ export default function PropertySearchPage() {
   const [suggestedProperties, setSuggestedProperties] = useState<Property[]>(
     []
   );
-  const [sortBy, setSortBy] = useState<string>('breakeven-asc');
+  const [sortBy, setSortBy] = useState<string>('composite-score-desc');
   const [filters, setFilters] = useState({
+    minPrice: 0,
     maxPrice: 0,
     minBedrooms: 0,
     propertyType: 'All',
   });
-  const [priorityMode, setPriorityMode] = useState<'composite' | 'breakeven'>(
-    'composite'
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(5);
   // Smart Match removed
@@ -107,7 +105,11 @@ export default function PropertySearchPage() {
 
     // Filter properties based on client profile and map to our Property type
     const filtered = realData.filter((prop: any) => {
-      const withinBudget = prop['Price (AUD)'] <= (loadedClient?.budget || 0);
+      const price = Number(prop['Price (AUD)'] ?? 0);
+      const minBudget = loadedClient?.minBudget ?? 0;
+      const maxBudget =
+        loadedClient?.maxBudget ?? loadedClient?.budget ?? Infinity;
+      const withinBudget = price >= minBudget && price <= maxBudget;
       const inPreferredLocation =
         !preferredState || prop['State'] === preferredState;
       return withinBudget && inPreferredLocation;
@@ -117,9 +119,9 @@ export default function PropertySearchPage() {
     // These are "stretch" suggestions with high investment potential
     const aboveBudget = realData.filter((prop: any) => {
       const price = Number(prop['Price (AUD)'] ?? 0);
-      const budget = loadedClient?.budget || 0;
-      const isAboveBudget = price > budget;
-      const withinStretchRange = price <= budget * 1.2; // Up to 20% over budget
+      const maxBudget = (loadedClient?.maxBudget ?? loadedClient?.budget) || 0;
+      const isAboveBudget = price > maxBudget;
+      const withinStretchRange = price <= maxBudget * 1.2; // Up to 20% over budget
       const inPreferredLocation =
         !preferredState || prop['State'] === preferredState;
       return isAboveBudget && withinStretchRange && inPreferredLocation;
@@ -207,7 +209,7 @@ export default function PropertySearchPage() {
     setProperties(mapped);
     setFilteredProperties(mapped);
 
-    // Sort suggestions by either composite investment score or break-even priority
+    // Compute suggestions metrics using same calculation as regular properties
     const suggestionsWithMetrics = mappedSuggestions.map((prop) => {
       // Use client's deposit to calculate LVR, fallback to 80% if no deposit provided
       const deposit = loadedClient.deposit || prop.price * 0.2;
@@ -219,40 +221,45 @@ export default function PropertySearchPage() {
         appreciationRate = 0.035;
       }
 
-      // If priority is break-even, use interest-only snapshot to match the document
       const analysis = calculateInvestmentAnalysis(
         prop.price,
         prop.estimatedRentalValueWeekly,
         prop.maintenanceCostAnnual,
-        0.065,
+        0.06,
         loadedClient.investmentPeriod || 10,
         appreciationRate,
-        lvr,
-        0, // taxRefund (default)
-        priorityMode === 'breakeven' // interestOnly when break-even priority selected
+        lvr
       );
 
       return {
         property: prop,
         score: analysis.investmentScore,
         roi: analysis.roiYear5,
-        breakeven: analysis.annualNetCashflowDoc ?? -Infinity,
+        breakEvenYears: analysis.breakEvenYears,
       };
     });
 
-    let finalSuggestions: Property[] = [];
-    if (priorityMode === 'breakeven') {
-      finalSuggestions = suggestionsWithMetrics
-        .sort((a, b) => (b.breakeven as number) - (a.breakeven as number))
-        .slice(0, 4)
-        .map((s) => s.property);
-    } else {
-      finalSuggestions = suggestionsWithMetrics
-        .filter((item) => item.score >= 65)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 4)
-        .map((item) => item.property);
-    }
+    // Apply same sort priority as regular property finding, with exception logic
+    let sortedSuggestions = suggestionsWithMetrics.filter(
+      (item) => item.score >= 65
+    );
+    sortedSuggestions = [...sortedSuggestions].sort((a, b) => {
+      switch (sortBy) {
+        case 'composite-score-desc':
+          return b.score - a.score;
+        case 'composite-score-asc':
+          return a.score - b.score;
+        case 'break-even-asc':
+          return a.breakEvenYears - b.breakEvenYears;
+        case 'break-even-desc':
+          return b.breakEvenYears - a.breakEvenYears;
+        default:
+          return b.score - a.score;
+      }
+    });
+    const finalSuggestions = sortedSuggestions
+      .slice(0, 4)
+      .map((item) => item.property);
 
     setSuggestedProperties(finalSuggestions);
 
@@ -273,15 +280,19 @@ export default function PropertySearchPage() {
     // Smart ranking removed
     setFilters((prev) => ({
       ...prev,
-      maxPrice: loadedClient?.budget || 0,
+      minPrice: loadedClient?.minBudget || 0,
+      maxPrice: (loadedClient?.maxBudget ?? loadedClient?.budget) || 0,
     }));
     setIsLoading(false);
-  }, [clientId, priorityMode]);
+  }, [clientId]);
 
   useEffect(() => {
     let results = properties;
 
     // Apply filters
+    if (filters.minPrice) {
+      results = results.filter((p) => p.price >= filters.minPrice);
+    }
     if (filters.maxPrice) {
       results = results.filter((p) => p.price <= filters.maxPrice);
     }
@@ -318,7 +329,7 @@ export default function PropertySearchPage() {
           a.price,
           a.estimatedRentalValueWeekly,
           a.maintenanceCostAnnual,
-          0.07,
+          0.06,
           client.investmentPeriod || 10,
           appreciationRate,
           lvrA
@@ -327,31 +338,23 @@ export default function PropertySearchPage() {
           b.price,
           b.estimatedRentalValueWeekly,
           b.maintenanceCostAnnual,
-          0.07,
+          0.06,
           client.investmentPeriod || 10,
           appreciationRate,
           lvrB
         );
 
         switch (sortBy) {
-          case 'price-asc':
-            return a.price - b.price;
-          case 'price-desc':
-            return b.price - a.price;
-          case 'breakeven-asc':
-            // Fastest break-even: higher annualNetCashflowDoc is better (less out-of-pocket)
-            return (
-              (analysisB.annualNetCashflowDoc || -Infinity) -
-              (analysisA.annualNetCashflowDoc || -Infinity)
-            );
-          case 'breakeven-desc':
-            // Slowest break-even: lower annualNetCashflowDoc
-            return (
-              (analysisA.annualNetCashflowDoc || -Infinity) -
-              (analysisB.annualNetCashflowDoc || -Infinity)
-            );
+          case 'composite-score-desc':
+            return analysisB.investmentScore - analysisA.investmentScore;
+          case 'composite-score-asc':
+            return analysisA.investmentScore - analysisB.investmentScore;
+          case 'break-even-asc':
+            return analysisA.breakEvenYears - analysisB.breakEvenYears;
+          case 'break-even-desc':
+            return analysisB.breakEvenYears - analysisA.breakEvenYears;
           default:
-            return 0;
+            return analysisB.investmentScore - analysisA.investmentScore;
         }
       });
     }
@@ -366,7 +369,7 @@ export default function PropertySearchPage() {
     setFilters((prev) => ({
       ...prev,
       [name]:
-        name === 'maxPrice' || name === 'minBedrooms'
+        name === 'minPrice' || name === 'maxPrice' || name === 'minBedrooms'
           ? Number.parseInt(value)
           : value,
     }));
@@ -442,6 +445,26 @@ export default function PropertySearchPage() {
             <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
               <div className='space-y-2'>
                 <Label
+                  htmlFor='minPrice'
+                  className='text-foreground font-medium text-sm'
+                >
+                  Min Price
+                </Label>
+                <div className='flex items-center gap-2'>
+                  <Input
+                    id='minPrice'
+                    name='minPrice'
+                    type='number'
+                    value={filters.minPrice}
+                    onChange={handleFilterChange}
+                    className='bg-input border-border text-foreground placeholder:text-muted-foreground'
+                  />
+                  <span className='text-sm text-muted-foreground'>AUD</span>
+                </div>
+              </div>
+
+              <div className='space-y-2'>
+                <Label
                   htmlFor='maxPrice'
                   className='text-foreground font-medium text-sm'
                 >
@@ -508,7 +531,7 @@ export default function PropertySearchPage() {
                   htmlFor='sortBy'
                   className='text-foreground font-medium text-sm'
                 >
-                  Sort By
+                  Priority Filter
                 </Label>
                 <select
                   id='sortBy'
@@ -516,35 +539,18 @@ export default function PropertySearchPage() {
                   onChange={(e) => setSortBy(e.target.value)}
                   className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
                 >
-                  <option value='breakeven-asc'>
-                    Break-Even (Fastest First)
+                  <option value='composite-score-desc'>
+                    Composite Score (High to Low)
                   </option>
-                  <option value='breakeven-desc'>
-                    Break-Even (Slowest First)
+                  <option value='composite-score-asc'>
+                    Composite Score (Low to High)
                   </option>
-                  <option value='price-asc'>Price (Low to High)</option>
-                  <option value='price-desc'>Price (High to Low)</option>
-                </select>
-              </div>
-
-              <div className='space-y-2'>
-                <Label
-                  htmlFor='priorityMode'
-                  className='text-foreground font-medium text-sm'
-                >
-                  Priority
-                </Label>
-                <select
-                  id='priorityMode'
-                  name='priorityMode'
-                  value={priorityMode}
-                  onChange={(e) =>
-                    setPriorityMode(e.target.value as 'composite' | 'breakeven')
-                  }
-                  className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
-                >
-                  <option value='composite'>Composite Score</option>
-                  <option value='breakeven'>Break-even Priority</option>
+                  <option value='break-even-asc'>
+                    Break Even (Fast to Slow)
+                  </option>
+                  <option value='break-even-desc'>
+                    Break Even (Slow to Fast)
+                  </option>
                 </select>
               </div>
             </div>
@@ -554,11 +560,12 @@ export default function PropertySearchPage() {
                 <Button
                   onClick={() => {
                     setFilters({
-                      maxPrice: client.budget,
+                      minPrice: client.minBudget || 0,
+                      maxPrice: client.maxBudget ?? client.budget,
                       minBedrooms: 0,
                       propertyType: 'All',
                     });
-                    setSortBy('roi-desc');
+                    setSortBy('composite-score-desc');
                   }}
                   variant='outline'
                   className='w-full border-border text-foreground hover:bg-muted'
@@ -580,12 +587,16 @@ export default function PropertySearchPage() {
             </h2>
             <p className='text-sm text-muted-foreground'>
               Sorted by{' '}
-              {sortBy.includes('price') ? 'Price' : 'Break-Even Period'}
+              {sortBy.includes('composite-score')
+                ? 'Composite Score'
+                : 'Break Even Period'}
               {' • '}
               {suggestedProperties.length > 0
-                ? `Within ${client.name}'s $${(client.budget / 1000).toFixed(
-                    0
-                  )}k budget`
+                ? `Within ${client.name}'s $${(
+                    (client.minBudget ?? client.budget) / 1000
+                  ).toFixed(0)}k-$${(
+                    (client.maxBudget ?? client.budget) / 1000
+                  ).toFixed(0)}k budget`
                 : `Matching ${client.name}'s ${client.investmentGoal} goal`}
             </p>
           </div>
@@ -615,7 +626,7 @@ export default function PropertySearchPage() {
               property.price,
               property.estimatedRentalValueWeekly,
               property.maintenanceCostAnnual,
-              0.07,
+              0.06,
               client.investmentPeriod || 10,
               appreciationRate,
               lvr
@@ -808,10 +819,18 @@ export default function PropertySearchPage() {
                     </CardTitle>
                     <CardDescription className='mt-2 text-amber-900 dark:text-amber-100 font-medium'>
                       These {suggestedProperties.length} properties are $
-                      {((client.budget * 0.01) / 1000).toFixed(0)}k-$
-                      {((client.budget * 0.2) / 1000).toFixed(0)}k above your $
-                      {(client.budget / 1000).toFixed(0)}k budget but have
-                      exceptional investment metrics.
+                      {(
+                        ((client.maxBudget ?? client.budget) * 0.01) /
+                        1000
+                      ).toFixed(0)}
+                      k-$
+                      {(
+                        ((client.maxBudget ?? client.budget) * 0.2) /
+                        1000
+                      ).toFixed(0)}
+                      k above your $
+                      {((client.maxBudget ?? client.budget) / 1000).toFixed(0)}k
+                      max budget but have exceptional investment metrics.
                       <br />
                       <span className='text-amber-700 dark:text-amber-300 text-sm'>
                         Each has been verified to have an Investment Score of
@@ -843,15 +862,16 @@ export default function PropertySearchPage() {
                       property.price,
                       property.estimatedRentalValueWeekly,
                       property.maintenanceCostAnnual,
-                      0.07,
+                      0.06,
                       client.investmentPeriod || 10,
                       appreciationRate,
                       lvr
                     );
 
-                    const budgetDifference = property.price - client.budget;
+                    const budgetDifference =
+                      property.price - (client.maxBudget ?? client.budget);
                     const percentageOver = (
-                      (budgetDifference / client.budget) *
+                      (budgetDifference / (client.maxBudget ?? client.budget)) *
                       100
                     ).toFixed(1);
 
@@ -892,7 +912,8 @@ export default function PropertySearchPage() {
                                   budget
                                 </span>
                                 <span className='text-xs text-amber-700 dark:text-amber-300'>
-                                  Investment Score: {analysis.investmentScore}
+                                  Investment Score:{' '}
+                                  {analysis.investmentScore.toFixed(2)}
                                 </span>
                               </div>
                             </div>

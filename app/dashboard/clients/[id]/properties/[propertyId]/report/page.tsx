@@ -122,7 +122,7 @@ export default function ReportPage() {
           mappedProperty.price,
           mappedProperty.estimatedRentalValueWeekly,
           mappedProperty.maintenanceCostAnnual,
-          0.07,
+          0.06,
           investmentPeriod,
           appreciationRate,
           lvr
