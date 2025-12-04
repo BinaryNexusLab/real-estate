@@ -27,7 +27,7 @@ export default function NewClientPage() {
     budget: 500000,
     minBudget: 0,
     maxBudget: 0,
-    preferredLocation: 'Sydney',
+    preferredLocation: 'Anywhere',
     investmentGoal: 'Capital Appreciation',
     investmentPeriod: 10,
   });
@@ -240,11 +240,11 @@ export default function NewClientPage() {
                     onChange={handleChange}
                     className='w-full px-3 py-2 bg-input border border-border text-foreground rounded-md'
                   >
-                    <option>Sydney</option>
-                    <option>Melbourne</option>
-                    <option>Brisbane</option>
-                    <option>Perth</option>
-                    <option>Adelaide</option>
+                    <option>Anywhere</option>
+                    <option>Western Suburbs</option>
+                    <option>East Suburbs, Botany, Hillsdale, Mascot</option>
+                    <option>Merrylands and close areas</option>
+                    <option>Western Suburbs from Tallawong</option>
                   </select>
                 </div>
                 <div className='space-y-2'>
