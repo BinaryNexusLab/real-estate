@@ -216,7 +216,11 @@ export default function PropertySearchPage() {
     const suggestionsWithMetrics = mappedSuggestions.map((prop) => {
       // Use client's deposit to calculate LVR, fallback to 80% if no deposit provided
       const deposit = loadedClient.deposit || prop.price * 0.2;
-      const lvr = Math.min(0.95, (prop.price - deposit) / prop.price);
+      // LVR = loan / price. If deposit >= price, it's a cash purchase (LVR = 0)
+      const lvr = Math.max(
+        0,
+        Math.min(0.95, (prop.price - deposit) / prop.price)
+      );
       let appreciationRate = 0.04;
       if (loadedClient.investmentGoal === 'Capital Appreciation') {
         appreciationRate = 0.05;
@@ -321,11 +325,17 @@ export default function PropertySearchPage() {
       results = [...results].sort((a, b) => {
         // Use client's deposit to calculate LVR for property A
         const depositA = client.deposit || a.price * 0.2;
-        const lvrA = Math.min(0.95, (a.price - depositA) / a.price);
+        const lvrA = Math.max(
+          0,
+          Math.min(0.95, (a.price - depositA) / a.price)
+        );
 
         // Use client's deposit to calculate LVR for property B
         const depositB = client.deposit || b.price * 0.2;
-        const lvrB = Math.min(0.95, (b.price - depositB) / b.price);
+        const lvrB = Math.max(
+          0,
+          Math.min(0.95, (b.price - depositB) / b.price)
+        );
 
         // Calculate metrics for both properties with client-specific parameters
         const analysisA = calculateInvestmentAnalysis(
@@ -615,9 +625,9 @@ export default function PropertySearchPage() {
             // Calculate client-specific parameters for this property
             // Use client's deposit to calculate LVR, fallback to 20% deposit if not provided
             const deposit = client.deposit || property.price * 0.2;
-            const lvr = Math.min(
-              0.95,
-              (property.price - deposit) / property.price
+            const lvr = Math.max(
+              0,
+              Math.min(0.95, (property.price - deposit) / property.price)
             );
 
             let appreciationRate = 0.04;
@@ -852,9 +862,12 @@ export default function PropertySearchPage() {
                   {suggestedProperties.map((property) => {
                     // Use client's deposit to calculate LVR, fallback to 20% deposit if not provided
                     const deposit = client.deposit || property.price * 0.2;
-                    const lvr = Math.min(
-                      0.95,
-                      (property.price - deposit) / property.price
+                    const lvr = Math.max(
+                      0,
+                      Math.min(
+                        0.95,
+                        (property.price - deposit) / property.price
+                      )
                     );
 
                     let appreciationRate = 0.04;

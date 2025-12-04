@@ -180,9 +180,13 @@ export default function PropertyDetailPage() {
       // Calculate LVR from client's actual deposit
       // If deposit is provided, use it; otherwise default to 20% of property price
       const clientDeposit = loadedClient.deposit || mappedProperty.price * 0.2;
-      const loanToValueRatio = Math.min(
-        0.95,
-        (mappedProperty.price - clientDeposit) / mappedProperty.price
+      // LVR = loan / price. If deposit >= price, it's a cash purchase (LVR = 0)
+      const loanToValueRatio = Math.max(
+        0,
+        Math.min(
+          0.95,
+          (mappedProperty.price - clientDeposit) / mappedProperty.price
+        )
       );
 
       // Use 6% interest rate as per calculation requirements
